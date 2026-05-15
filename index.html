@@ -357,14 +357,14 @@ canvas{ display:block; }
 
 @media (max-width:599px) and (orientation:portrait){
     #miniMap{
-        top:266px; right:0;
+        top:292px; right:0;
         bottom:auto; left:auto;
         width:170px; height:130px;
         border-top:none; border-right:none;
         border-radius:0 0 0 4px;
     }
     #miniMapCanvas{ width:170px; height:130px; }
-    #miniMap.map-icon-mode{ top:266px; right:0; bottom:auto; width:44px; height:44px; border-radius:50%; }
+    #miniMap.map-icon-mode{ top:292px; right:0; bottom:auto; width:44px; height:44px; border-radius:50%; }
 }
 
 /* =====================================================
@@ -496,16 +496,17 @@ canvas{ display:block; }
     .ui-full{ display:none; }
     .ui-toggle{ display:flex; }
     .hud{ top:0; right:0; left:0; width:100%; display:flex; flex-direction:row; align-items:center; gap:0; background:rgba(0,0,0,0.75); border-bottom:1px solid rgba(255,255,255,0.15); padding:4px 8px 4px 44px; text-align:left; font-size:10px; z-index:4; }
-    .hud-stat{ display:flex; flex-direction:column; flex:1; padding:0 4px; }
+    .hud-stat{ display:flex; flex-direction:column; flex:1; padding:0 4px; min-width:0; }
     .hud-label{ font-size:8px; color:rgba(255,255,255,0.5); letter-spacing:1px; margin-bottom:2px; }
     .bar{ width:100%; height:6px; margin-bottom:0; }
-    #credits{ top:0; right:0; font-size:11px; padding:4px 8px; background:rgba(0,0,0,0.75); border:none; border-left:1px solid rgba(255,215,0,0.25); border-bottom:1px solid rgba(255,215,0,0.2); z-index:5; line-height:32px; }
+    /* Credits moves BELOW the HUD bar on portrait so it never overlaps */
+    #credits{ top:36px; right:0; font-size:11px; padding:3px 10px; background:rgba(0,0,0,0.82); border:none; border-left:1px solid rgba(255,215,0,0.3); border-bottom:1px solid rgba(255,215,0,0.25); z-index:5; line-height:normal; border-radius:0 0 0 4px; }
     #joystickBase{ width:100px; height:100px; bottom:20px; left:20px; }
     #joystickStick{ width:38px; height:38px; }
     #actionButtons{ flex-direction:row; bottom:20px; right:12px; gap:8px; }
     .action-btn{ width:68px; height:68px; font-size:9px; }
     .action-btn .btn-icon{ font-size:18px; }
-    #targetHUD{ top:36px; right:0; bottom:auto; width:170px; border-top:none; }
+    #targetHUD{ top:62px; right:0; bottom:auto; width:170px; border-top:none; }
     #planetPortraitWrap{ height:68px; }
     .thud-body{ padding:6px 8px; }
     .thud-row{ font-size:9px; margin-bottom:3px; }
@@ -526,7 +527,7 @@ canvas{ display:block; }
     #gachaReveal .gr-icon{ font-size:44px; }
     #gachaReveal .gr-ore-name{ font-size:18px; }
     /* targetHUD icon mode on portrait */
-    #targetHUD.hud-icon-mode{ top:36px; right:0; bottom:auto; width:44px; height:44px; border-radius:50%; border-top:none; }
+    #targetHUD.hud-icon-mode{ top:62px; right:0; bottom:auto; width:44px; height:44px; border-radius:50%; border-top:none; }
 }
 
 /* =====================================================
@@ -673,6 +674,9 @@ LSHIFT = Boost<br>
         <div class="upgrade-summary">
             <span>AVAILABLE CREDITS</span>
             <strong id="upgradeCreditsDisplay">1000 ¢</strong>
+        </div>
+        <div style="background:#0a1018;border:1px solid #1a3050;padding:8px 12px;margin-bottom:14px;font-size:10px;color:#336655;letter-spacing:1px;">
+            ⚠ Each upgrade extends your capacity by a <span style="color:#00ff88;">random amount (10–30)</span>. Cost scales with your current maximum — the bigger your ship, the pricier the next boost. Cap limit: <span style="color:#4af;">400</span> per stat.
         </div>
         <div id="upgradeCards"></div>
     </div>
@@ -1081,13 +1085,16 @@ const ship = {
     maxHp:100, maxArmor:100, maxFuel:100, maxEnergy:100,
     invincibleFrames: 0
 };
-const shipUpgrades = { hp:0, armor:0, fuel:0, energy:0 };
+// No tiering — dynamic upgrade system
+// Cost = floor(currentMax * UPGRADE_COST_FACTOR), randomized cap gain each purchase
 const UPGRADE_DEFS = [
-    { stat:'hp',     label:'Hull Integrity',    icon:'❤',  color:'#ff4444', desc:'Reinforced hull plating increases maximum hit points.',        costs:[200,400,700,1100,1600], maxKey:'maxHp'     },
-    { stat:'armor',  label:'Armor Plating',      icon:'🛡', color:'#aaaaaa', desc:'Composite alloy layers improve damage absorption capacity.',   costs:[180,360,620,980,1400],  maxKey:'maxArmor'  },
-    { stat:'fuel',   label:'Fuel Tank',           icon:'⛽', color:'#ff8800', desc:'Extended fuel cells allow longer deep-space operations.',      costs:[150,300,520,820,1200],  maxKey:'maxFuel'   },
-    { stat:'energy', label:'Energy Capacitor',    icon:'⚡', color:'#00ccff', desc:'High-density capacitors boost total stored energy output.',   costs:[160,320,560,880,1280],  maxKey:'maxEnergy' },
+    { stat:'hp',     label:'Hull Integrity',   icon:'❤',  color:'#ff4444', desc:'Reinforced hull plating increases maximum hit points. Each installation adds a random capacity boost.',   maxKey:'maxHp',    hardCap:400, costFactor:1.8 },
+    { stat:'armor',  label:'Armor Plating',    icon:'🛡', color:'#aaaaaa', desc:'Composite alloy layers improve damage absorption. Random alloy quality determines the cap increase.',    maxKey:'maxArmor', hardCap:400, costFactor:1.7 },
+    { stat:'fuel',   label:'Fuel Tank',        icon:'⛽', color:'#ff8800', desc:'Extended fuel cells for longer deep-space operations. Each expansion varies by tank batch quality.',     maxKey:'maxFuel',  hardCap:400, costFactor:1.5 },
+    { stat:'energy', label:'Energy Capacitor', icon:'⚡', color:'#00ccff', desc:'High-density capacitors for more stored energy. Capacitor yields fluctuate per installation batch.',    maxKey:'maxEnergy',hardCap:400, costFactor:1.6 },
 ];
+// Min/max random gain per upgrade purchase
+const UPGRADE_GAIN_MIN = 10, UPGRADE_GAIN_MAX = 30;
 
 // =====================================================
 // THRUSTER
@@ -1396,28 +1403,58 @@ function switchShopTab(tab){
 // =====================================================
 // UPGRADES
 // =====================================================
-const MAX_UPGRADE_TIER=5, UPGRADE_CAPACITY_PER_TIER=25;
+const MAX_UPGRADE_TIER=5, UPGRADE_CAPACITY_PER_TIER=25; // legacy constants kept for safety (unused)
+function getUpgradeCost(def){
+    return Math.floor(ship[def.maxKey] * def.costFactor);
+}
 function buildUpgradeUI(){
     document.getElementById('upgradeCreditsDisplay').textContent=credits+' ¢';
     let html='';
     for(const def of UPGRADE_DEFS){
-        const tier=shipUpgrades[def.stat],maxed=tier>=MAX_UPGRADE_TIER,curMax=ship[def.maxKey];
-        const nextMax=maxed?curMax:curMax+UPGRADE_CAPACITY_PER_TIER,cost=maxed?0:def.costs[tier],canAfford=credits>=cost;
-        let pipsHtml='';
-        for(let i=0;i<MAX_UPGRADE_TIER;i++) pipsHtml+=`<div class="upgrade-pip${i<tier?' filled':''}"></div>`;
-        const tierLabel=maxed?'MAX':`TIER ${tier}/${MAX_UPGRADE_TIER}`,tierColor=maxed?'#00ff88':(tier>0?'#4af':'#334455');
-        html+=`<div class="upgrade-card${maxed?' maxed':''}"><div class="upgrade-header"><div class="upgrade-name"><span style="color:${def.color};">${def.icon}</span>${def.label}</div><div class="upgrade-tier-badge" style="background:${tierColor}22;color:${tierColor};border:1px solid ${tierColor}55;">${tierLabel}</div></div><div style="color:#445566;font-size:11px;margin-bottom:10px;">${def.desc}</div><div class="upgrade-tier-pips">${pipsHtml}</div><div class="upgrade-stat-row"><div class="upgrade-current">CURRENT MAX <span style="color:${def.color};">${curMax}</span></div>${!maxed?`<div class="upgrade-arrow">→</div><div class="upgrade-next">AFTER UPGRADE <span>+${UPGRADE_CAPACITY_PER_TIER} → ${nextMax}</span></div>`:''}</div><div class="upgrade-footer">${maxed?`<span class="upgrade-maxed-label">✔ FULLY UPGRADED</span>`:`<div class="upgrade-cost" style="color:${canAfford?'#FFD700':'#664400'};">${cost} ¢</div><button class="upgradeButton${canAfford?'':' maxed-btn'}" style="${canAfford?'':'border-color:#223333;color:#334444;'}" onclick="purchaseUpgrade('${def.stat}')">${canAfford?'⬆ UPGRADE':'✖ NEED CREDITS'}</button>`}</div></div>`;
+        const curMax=ship[def.maxKey];
+        const atCap=curMax>=def.hardCap;
+        const cost=atCap?0:getUpgradeCost(def);
+        const canAfford=credits>=cost;
+        // Progress bar: how far from base (100) to hardCap
+        const progressPct=Math.min(100,Math.round((curMax-100)/(def.hardCap-100)*100));
+        const badgeLabel=atCap?'MAX CAP':(`${curMax} / ${def.hardCap}`);
+        const badgeColor=atCap?'#00ff88':'#4af';
+        const gainPreview=atCap?0:`+${UPGRADE_GAIN_MIN}–${UPGRADE_GAIN_MAX}`;
+        html+=`<div class="upgrade-card${atCap?' maxed':''}">
+<div class="upgrade-header">
+  <div class="upgrade-name"><span style="color:${def.color};">${def.icon}</span>${def.label}</div>
+  <div class="upgrade-tier-badge" style="background:${badgeColor}22;color:${badgeColor};border:1px solid ${badgeColor}55;">${badgeLabel}</div>
+</div>
+<div style="color:#445566;font-size:11px;margin-bottom:10px;">${def.desc}</div>
+<div class="upgrade-tier-track" style="margin-bottom:12px;">
+  <div class="upgrade-tier-fill" style="width:${progressPct}%;background:${atCap?'#00ff88':def.color};"></div>
+</div>
+<div class="upgrade-stat-row">
+  <div class="upgrade-current">CURRENT MAX <span style="color:${def.color};">${curMax}</span></div>
+  ${!atCap?`<div class="upgrade-arrow">→</div><div class="upgrade-next">GAIN <span style="color:#00ff88;">${gainPreview} (random)</span></div>`:''}
+</div>
+<div class="upgrade-footer">${atCap
+  ? `<span class="upgrade-maxed-label">✔ CAPACITY LIMIT REACHED</span>`
+  : `<div class="upgrade-cost" style="color:${canAfford?'#FFD700':'#664400'};">${cost} ¢</div>
+     <button class="upgradeButton${canAfford?'':' maxed-btn'}" style="${canAfford?'':'border-color:#223333;color:#334444;'}" onclick="purchaseUpgrade('${def.stat}')">${canAfford?'⬆ UPGRADE':'✖ NEED CREDITS'}</button>`
+}</div>
+</div>`;
     }
     document.getElementById('upgradeCards').innerHTML=html;
 }
 function purchaseUpgrade(stat){
     const def=UPGRADE_DEFS.find(d=>d.stat===stat); if(!def) return;
-    const tier=shipUpgrades[stat]; if(tier>=MAX_UPGRADE_TIER){showNotification('✔ Already fully upgraded!');return;}
-    const cost=def.costs[tier]; if(credits<cost){showNotification(`❌ Need ${cost} ¢ — not enough credits!`);return;}
-    credits-=cost; shipUpgrades[stat]++; ship[def.maxKey]+=UPGRADE_CAPACITY_PER_TIER;
-    ship[stat]=Math.min(ship[stat]+UPGRADE_CAPACITY_PER_TIER,ship[def.maxKey]);
-    const newTier=shipUpgrades[stat],label=newTier>=MAX_UPGRADE_TIER?'MAXED OUT':`Tier ${newTier}`;
-    showNotification(`⬆ ${def.label} upgraded! [${label}] — Max now ${ship[def.maxKey]}`);
+    const curMax=ship[def.maxKey];
+    if(curMax>=def.hardCap){showNotification('✔ Capacity limit reached — cannot upgrade further!');return;}
+    const cost=getUpgradeCost(def);
+    if(credits<cost){showNotification(`❌ Need ${cost} ¢ — not enough credits!`);return;}
+    const gain=UPGRADE_GAIN_MIN+Math.floor(Math.random()*(UPGRADE_GAIN_MAX-UPGRADE_GAIN_MIN+1));
+    const cappedGain=Math.min(gain, def.hardCap-curMax);
+    credits-=cost;
+    ship[def.maxKey]=Math.min(def.hardCap, curMax+cappedGain);
+    // Also partially restore stat (25% of gain, feels rewarding)
+    ship[stat]=Math.min(ship[def.maxKey], ship[stat]+Math.floor(cappedGain*0.25));
+    showNotification(`⬆ ${def.label} upgraded! +${cappedGain} max capacity → ${ship[def.maxKey]}`);
     updateHUD(); buildUpgradeUI();
 }
 
