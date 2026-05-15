@@ -671,10 +671,6 @@ LSHIFT = Boost<br>
         <button class="sell-all-btn" onclick="sellAllOre()">💰 SELL ALL CARGO</button>
     </div>
     <div id="upgradePanel">
-        <div class="upgrade-summary">
-            <span>AVAILABLE CREDITS</span>
-            <strong id="upgradeCreditsDisplay">1000 ¢</strong>
-        </div>
         <div style="background:#0a1018;border:1px solid #1a3050;padding:8px 12px;margin-bottom:14px;font-size:10px;color:#336655;letter-spacing:1px;">
             ⚠ Each upgrade extends your capacity by a <span style="color:#00ff88;">random amount (10–30)</span>. Cost scales with your current maximum — the bigger your ship, the pricier the next boost. Cap limit: <span style="color:#4af;">400</span> per stat.
         </div>
@@ -1384,6 +1380,21 @@ function buyItem(itemId){
     showNotification(`✅ Purchased: ${item.name}`); updateShopDisplay(); updateHUD();
 }
 
+// ── Mobile: force-release pressed state on shop buttons after touch ──
+// On iOS/Android the browser holds :active until the next tap, making buy
+// buttons stay green. We blur the button after touchend so it resets immediately.
+(function(){
+    function releaseTouchBtn(e){
+        const btn = e.target.closest('button');
+        if(!btn) return;
+        setTimeout(()=>{ btn.blur(); }, 120);
+    }
+    ['shopContainer','oreShopContainer'].forEach(function(id){
+        const el = document.getElementById(id);
+        if(el) el.addEventListener('touchend', releaseTouchBtn, {passive:true});
+    });
+})();
+
 // =====================================================
 // SHOP TABS
 // =====================================================
@@ -1408,7 +1419,6 @@ function getUpgradeCost(def){
     return Math.floor(ship[def.maxKey] * def.costFactor);
 }
 function buildUpgradeUI(){
-    document.getElementById('upgradeCreditsDisplay').textContent=credits+' ¢';
     let html='';
     for(const def of UPGRADE_DEFS){
         const curMax=ship[def.maxKey];
@@ -1455,7 +1465,7 @@ function purchaseUpgrade(stat){
     // Also partially restore stat (25% of gain, feels rewarding)
     ship[stat]=Math.min(ship[def.maxKey], ship[stat]+Math.floor(cappedGain*0.25));
     showNotification(`⬆ ${def.label} upgraded! +${cappedGain} max capacity → ${ship[def.maxKey]}`);
-    updateHUD(); buildUpgradeUI();
+    updateHUD(); updateShopDisplay(); buildUpgradeUI();
 }
 
 // =====================================================
@@ -1552,9 +1562,70 @@ function drawThruster(){
     const gradient=ctx.createLinearGradient(-30,0,0,0);gradient.addColorStop(0,"rgba(0,255,255,0)");gradient.addColorStop(1,"rgba(0,255,255,1)");ctx.fillStyle=gradient;
     ctx.beginPath();ctx.moveTo(0,-8);ctx.lineTo(-30,0);ctx.lineTo(0,8);ctx.fill();ctx.restore();ctx.shadowBlur=0;
 }
+// =====================================================
+// SPACESHIP SPRITE  (base64-encoded SVG, loaded once)
+// =====================================================
+const _shipImg = new Image();
+(function(){
+    // SVG spaceship: nose points RIGHT (+X), centered at 0,0, 64×64 viewport
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-32 -32 64 64" width="64" height="64">
+  <!-- Engine glow base -->
+  <ellipse cx="-18" cy="0" rx="8" ry="5" fill="rgba(0,180,255,0.18)"/>
+  <!-- Main hull body -->
+  <polygon points="28,0 -10,-13 -18,-8 -18,8 -10,13" fill="#c8d8f0" stroke="#6090c0" stroke-width="1"/>
+  <!-- Hull center ridge -->
+  <polygon points="28,0 -8,-5 -14,-3 -14,3 -8,5" fill="#ddeeff" stroke="#90b8e0" stroke-width="0.6"/>
+  <!-- Left wing -->
+  <polygon points="-4,-13 -18,-8 -14,-26 2,-18" fill="#8aaccc" stroke="#5080a8" stroke-width="1"/>
+  <!-- Right wing -->
+  <polygon points="-4,13 -18,8 -14,26 2,18" fill="#8aaccc" stroke="#5080a8" stroke-width="1"/>
+  <!-- Wing accent stripes -->
+  <line x1="-5" y1="-14" x2="-13" y2="-22" stroke="#a0c8ee" stroke-width="0.8" stroke-dasharray="2,2"/>
+  <line x1="-5" y1="14"  x2="-13" y2="22"  stroke="#a0c8ee" stroke-width="0.8" stroke-dasharray="2,2"/>
+  <!-- Wing tip nozzles -->
+  <rect x="-16" y="-27" width="5" height="3" rx="1" fill="#4a6a8a"/>
+  <rect x="-16" y="24"  width="5" height="3" rx="1" fill="#4a6a8a"/>
+  <!-- Cockpit canopy -->
+  <ellipse cx="14" cy="0" rx="7" ry="5" fill="#1a3a5a" stroke="#4090d0" stroke-width="0.8"/>
+  <ellipse cx="15" cy="-1" rx="3" ry="2.2" fill="#2a6aaa" opacity="0.7"/>
+  <!-- Hull panel lines -->
+  <line x1="0"  y1="-10" x2="20" y2="-2"  stroke="#90b0d0" stroke-width="0.5" opacity="0.7"/>
+  <line x1="0"  y1="10"  x2="20" y2="2"   stroke="#90b0d0" stroke-width="0.5" opacity="0.7"/>
+  <line x1="-6" y1="-8"  x2="-6" y2="8"   stroke="#90b0d0" stroke-width="0.5" opacity="0.6"/>
+  <!-- Engine nacelle -->
+  <rect x="-22" y="-6" width="9" height="12" rx="3" fill="#3a5070" stroke="#507090" stroke-width="0.8"/>
+  <!-- Engine exhaust rim -->
+  <ellipse cx="-22" cy="0" rx="2" ry="6" fill="#1a2a3a" stroke="#304a6a" stroke-width="0.5"/>
+  <!-- Running lights -->
+  <circle cx="2"  cy="-14" r="1.5" fill="#ff4444" opacity="0.9"/>
+  <circle cx="2"  cy="14"  r="1.5" fill="#44ff44" opacity="0.9"/>
+  <circle cx="22" cy="0"   r="1.2" fill="#ffffff" opacity="0.8"/>
+</svg>`;
+    const blob = new Blob([svg], {type:'image/svg+xml'});
+    const url  = URL.createObjectURL(blob);
+    _shipImg.src = url;
+    _shipImg.onload = () => URL.revokeObjectURL(url);
+})();
+
 function drawShip(){
-    ctx.save();ctx.translate(canvas.width/2,canvas.height/2);ctx.rotate(ship.angle);drawThruster();
-    ctx.fillStyle="gold";ctx.fillRect(-20,-20,40,40);ctx.fillStyle="#222";ctx.fillRect(5,-8,10,16);ctx.restore();
+    ctx.save();
+    ctx.translate(canvas.width/2, canvas.height/2);
+    ctx.rotate(ship.angle);
+    drawThruster();
+    // Draw the SVG sprite centered (64×64 image, origin at center)
+    if(_shipImg.complete && _shipImg.naturalWidth){
+        ctx.shadowBlur  = ship.boosting ? 22 : 8;
+        ctx.shadowColor = ship.boosting ? '#00ccff' : 'rgba(100,180,255,0.6)';
+        ctx.drawImage(_shipImg, -32, -32, 64, 64);
+        ctx.shadowBlur = 0;
+    } else {
+        // Fallback while image loads
+        ctx.fillStyle = '#c8d8f0';
+        ctx.beginPath();
+        ctx.moveTo(28,0); ctx.lineTo(-18,-13); ctx.lineTo(-14,0); ctx.lineTo(-18,13);
+        ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
 }
 
 // =====================================================
