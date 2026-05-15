@@ -1233,10 +1233,10 @@ function rollResourceCost(rarityKey){
     return { ...chosen, amount };
 }
 const GACHA_PACKS=[
-    {id:'basic',   name:'Basic Probe',       icon:'📦',desc:'Surface scan extraction. Low risk, guaranteed result.',                                   costRarityKey:'common',   rarity:'rarity-common',   degradeChance:0.08, pool:[{oreId:'iron',weight:50},{oreId:'silica',weight:40},{oreId:'copper',weight:10}]},
-    {id:'deep',    name:'Deep Drill',         icon:'🔩',desc:'Sub-surface boring. Moderate resource draw, better yields.',                              costRarityKey:'uncommon', rarity:'rarity-uncommon', degradeChance:0.20, pool:[{oreId:'iron',weight:20},{oreId:'copper',weight:30},{oreId:'nickel',weight:25},{oreId:'cobalt',weight:15},{oreId:'titanium',weight:10}]},
-    {id:'seismic', name:'Seismic Burst',      icon:'💥',desc:'Explosive fracture mining. High resource toll, rare materials accessible.',               costRarityKey:'rare',     rarity:'rarity-rare',     degradeChance:0.38, pool:[{oreId:'copper',weight:15},{oreId:'cobalt',weight:15},{oreId:'titanium',weight:30},{oreId:'iridium',weight:25},{oreId:'darkcrystal',weight:15}]},
-    {id:'quantum', name:'Quantum Core Tap',   icon:'✨',desc:'Experimental deep-field resonance. Extreme resource drain — legendary yields possible.',   costRarityKey:'epic',     rarity:'rarity-epic',     degradeChance:0.60, pool:[{oreId:'titanium',weight:15},{oreId:'iridium',weight:20},{oreId:'darkcrystal',weight:30},{oreId:'vexorite',weight:35}]},
+    {id:'basic',   name:'Basic Probe',       icon:'📦',desc:'Surface scan extraction. Low risk, guaranteed result.',                                   costRarityKey:'common',   rarity:'rarity-common',   degradeChance:0.08, integrityDrain:1, pool:[{oreId:'iron',weight:50},{oreId:'silica',weight:40},{oreId:'copper',weight:10}]},
+    {id:'deep',    name:'Deep Drill',         icon:'🔩',desc:'Sub-surface boring. Moderate resource draw, better yields.',                              costRarityKey:'uncommon', rarity:'rarity-uncommon', degradeChance:0.20, integrityDrain:2, pool:[{oreId:'iron',weight:20},{oreId:'copper',weight:30},{oreId:'nickel',weight:25},{oreId:'cobalt',weight:15},{oreId:'titanium',weight:10}]},
+    {id:'seismic', name:'Seismic Burst',      icon:'💥',desc:'Explosive fracture mining. High resource toll, rare materials accessible.',               costRarityKey:'rare',     rarity:'rarity-rare',     degradeChance:0.38, integrityDrain:3, pool:[{oreId:'copper',weight:15},{oreId:'cobalt',weight:15},{oreId:'titanium',weight:30},{oreId:'iridium',weight:25},{oreId:'darkcrystal',weight:15}]},
+    {id:'quantum', name:'Quantum Core Tap',   icon:'✨',desc:'Experimental deep-field resonance. Extreme resource drain — legendary yields possible.',   costRarityKey:'epic',     rarity:'rarity-epic',     degradeChance:0.60, integrityDrain:5, pool:[{oreId:'titanium',weight:15},{oreId:'iridium',weight:20},{oreId:'darkcrystal',weight:30},{oreId:'vexorite',weight:35}]},
 ];
 
 // =====================================================
@@ -1248,13 +1248,40 @@ function addToCargo(oreId,amount){ cargo[oreId]=(cargo[oreId]||0)+amount; }
 // =====================================================
 // GACHA
 // =====================================================
-function rollGachaPack(pack){
-    const tw=pack.pool.reduce((s,e)=>s+e.weight,0);
-    let roll=Math.random()*tw, picked=pack.pool[pack.pool.length-1];
-    for(const e of pack.pool){ roll-=e.weight; if(roll<=0){picked=e;break;} }
-    const ore=ORE_TABLE.find(o=>o.id===picked.oreId);
-    const amount=ore.min+Math.floor(Math.random()*(ore.max-ore.min+1));
-    return {ore,amount};
+function rollGachaPack(pack, asteroid){
+    // ── Integrity factor (0.0 = destroyed, 1.0 = pristine) ───────────────
+    let integrityFactor = 1.0;
+    if(asteroid && asteroid.maxIntegrity > 0){
+        integrityFactor = Math.max(0, asteroid.integrity / asteroid.maxIntegrity);
+    }
+
+    // ── Quality bias: high integrity boosts higher-rarity ore weights ─────
+    // Each ore gets a bonus weight proportional to its rarity and integrityFactor.
+    // At 100% integrity the bonus is fully applied; at 0% the pool reverts to base.
+    // Rarity tiers: 0=common, 1=uncommon, 2=rare, 3=epic
+    const RARITY_BONUS_SCALE = 1.8; // max multiplier added for epic ores at full integrity
+    const biasedPool = pack.pool.map(e => {
+        const ore = ORE_TABLE.find(o => o.id === e.oreId);
+        const rarityBonus   = ore ? ore.rarity * RARITY_BONUS_SCALE * integrityFactor : 0;
+        // Common ores get a slight relative penalty at high integrity (rarer finds crowd them out)
+        const commonPenalty = ore && ore.rarity === 0 ? e.weight * (1 - integrityFactor) * 0.5 : 0;
+        return { ...e, adjWeight: Math.max(0.1, e.weight + rarityBonus - commonPenalty) };
+    });
+
+    const tw = biasedPool.reduce((s, e) => s + e.adjWeight, 0);
+    let roll = Math.random() * tw;
+    let picked = biasedPool[biasedPool.length - 1];
+    for(const e of biasedPool){ roll -= e.adjWeight; if(roll <= 0){ picked = e; break; } }
+
+    const ore = ORE_TABLE.find(o => o.id === picked.oreId);
+
+    // ── Quantity scaling: high integrity → lean toward max; low → lean toward min
+    // effectiveMax shrinks linearly with integrity, but never below ore.min.
+    const effectiveMax = ore.min + Math.round((ore.max - ore.min) * integrityFactor);
+    const clampedMax   = Math.max(ore.min, effectiveMax);
+    const amount       = ore.min + Math.floor(Math.random() * (clampedMax - ore.min + 1));
+
+    return { ore, amount, integrityFactor };
 }
 
 // =====================================================
@@ -1296,7 +1323,8 @@ function openAsteroidShop(asteroid){
         const rangeHtml=RESOURCE_POOL.map(r=>`<span style="color:${r.color};font-size:10px;">${r.icon} ${tier[r.key][0]}–${tier[r.key][1]}</span>`).join(' &nbsp;');
         const degradePct=Math.round(pack.degradeChance*100);
         const degradeColor=pack.degradeChance<0.15?'#667744':pack.degradeChance<0.35?'#997733':pack.degradeChance<0.55?'#cc5522':'#ff3311';
-        html+=`<div class="gacha-card ${pack.rarity}" onclick="buyGachaPack('${pack.id}')"><div class="gc-rarity-bar"></div><div class="gc-icon">${pack.icon}</div><div class="gc-name">${pack.name}</div><div class="gc-desc">${pack.desc}</div><div class="gc-pool">Possible: ${poolNames}</div><div class="gc-cost-range"><div class="gc-cost-label">⚠ RANDOM RESOURCE DRAIN</div><div class="gc-cost-values">${rangeHtml}</div></div><div style="margin-top:6px;padding:5px 8px;background:rgba(0,0,0,0.3);border:1px solid ${degradeColor}44;font-size:9px;letter-spacing:1px;color:${degradeColor};">⚠ CAP DEGRADE RISK: ${degradePct}%</div></div>`;
+        const drainColor=pack.integrityDrain<=1?'#668844':pack.integrityDrain<=2?'#997733':pack.integrityDrain<=3?'#cc5522':'#ff3311';
+        html+=`<div class="gacha-card ${pack.rarity}" onclick="buyGachaPack('${pack.id}')"><div class="gc-rarity-bar"></div><div class="gc-icon">${pack.icon}</div><div class="gc-name">${pack.name}</div><div class="gc-desc">${pack.desc}</div><div class="gc-pool">Possible: ${poolNames}</div><div class="gc-cost-range"><div class="gc-cost-label">⚠ RANDOM RESOURCE DRAIN</div><div class="gc-cost-values">${rangeHtml}</div></div><div style="margin-top:6px;padding:5px 8px;background:rgba(0,0,0,0.3);border:1px solid ${drainColor}44;font-size:9px;letter-spacing:1px;color:${drainColor};">⛏ INTEGRITY DRAIN: −${pack.integrityDrain} &nbsp;|&nbsp; <span style="color:${degradeColor};">⚠ CAP DEGRADE RISK: ${degradePct}%</span></div></div>`;
     }
     document.getElementById('gachaGrid').innerHTML=html;
     updateAsteroidIntegrityDisplay();
@@ -1358,13 +1386,13 @@ function buyGachaPack(packId){
     if(rolled.key==='hp'||rolled.key==='armor'){ const flash=document.getElementById('hitFlash'); flash.style.background=rolled.key==='hp'?'rgba(255,30,30,0.35)':'rgba(180,180,180,0.25)'; setTimeout(()=>{flash.style.background='rgba(255,30,30,0)';},200); }
     const degrade = rollCapacityDegrade(pack);
     updateHUD(); updateOreShopResourceDisplay();
-    const {ore,amount}=rollGachaPack(pack);
+    const {ore,amount,integrityFactor}=rollGachaPack(pack, asteroid);
     addToCargo(ore.id,amount);
 
     // ── Asteroid degradation ──────────────────────────────────────────────
     if(asteroid){
-        // Decrement integrity
-        asteroid.integrity = Math.max(0, asteroid.integrity - 1);
+        // Decrement integrity by the pack's drain value (higher intensity = more damage)
+        asteroid.integrity = Math.max(0, asteroid.integrity - pack.integrityDrain);
 
         // Shrink radius by a randomised percentage of current radius
         const shrinkFactor = RADIUS_SHRINK_PER_OP_FACTOR * (0.7 + Math.random() * 0.6); // ±30%
@@ -1395,10 +1423,18 @@ function buyGachaPack(packId){
 
     showGachaReveal(ore,amount,rolled,degrade);
 }
-function showGachaReveal(ore,amount,rolledCost,degrade){
+function showGachaReveal(ore,amount,rolledCost,degrade,integrityFactor){
     document.getElementById('grIcon').textContent=ore.icon;
     document.getElementById('grName').textContent=ore.name; document.getElementById('grName').style.color=ore.color;
-    document.getElementById('grAmount').textContent=`× ${amount} units obtained`;
+    // Show integrity yield modifier alongside the amount
+    let yieldNote = '';
+    if(integrityFactor !== undefined){
+        const pct = Math.round(integrityFactor * 100);
+        if(pct >= 80)      yieldNote = ` <span style="color:#00cc66;font-size:11px;">(+INTEGRITY BONUS)</span>`;
+        else if(pct >= 50) yieldNote = ` <span style="color:#ffcc00;font-size:11px;">(PARTIAL YIELD)</span>`;
+        else               yieldNote = ` <span style="color:#ff4444;font-size:11px;">(LOW YIELD — WEAKENED)</span>`;
+    }
+    document.getElementById('grAmount').innerHTML=`× ${amount} units obtained${yieldNote}`;
     const rarityEl=document.getElementById('grRarity'); rarityEl.textContent=ore.rarityLabel; rarityEl.style.color=ore.color; rarityEl.style.border=`1px solid ${ore.color}`; rarityEl.style.background='rgba(0,0,0,0.4)';
     const costEl=document.getElementById('grCostPaid'); costEl.textContent=`${rolledCost.icon} −${rolledCost.amount} ${rolledCost.label} consumed`; costEl.style.color=rolledCost.color; costEl.style.borderColor=rolledCost.color+'55';
     let grDegrade = document.getElementById('grDegrade');
@@ -1787,6 +1823,9 @@ function spawnAsteroidsForPlanet(planet){
             const seed   = Math.floor(Math.random()*999999);
             const rng    = seededRand(seed);
             const maxIntegrity = INTEGRITY_BY_TIER[tier.label];
+            // Initial integrity is randomised: 60–100% of max, so asteroids
+            // start in varying structural states (never fully pristine, never exhausted).
+            const initIntegrity = Math.max(1, Math.floor(maxIntegrity * (0.60 + Math.random() * 0.40)));
             asteroids.push({
                 id: _asteroidIdCounter++,
                 x:wx, y:wy,
@@ -1797,7 +1836,7 @@ function spawnAsteroidsForPlanet(planet){
                 rotSpeed:(Math.random()-0.5)*0.018,
                 tier, shape:buildAsteroidShape(radius,rng), seed,
                 hitCooldown:0, planetId:planet.id,
-                integrity: maxIntegrity,           // current integrity
+                integrity: initIntegrity,          // randomised starting integrity
                 maxIntegrity,                      // max integrity (for % calc)
                 destroyed: false,
             });
