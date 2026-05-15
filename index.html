@@ -245,6 +245,56 @@ canvas{ display:block; }
 /* HIT FLASH */
 #hitFlash{ position:fixed; inset:0; background:rgba(255,30,30,0); pointer-events:none; z-index:99; transition:background 0.08s; }
 
+/* PC default: right side, above the target HUD.
+   targetHUD is bottom:180px, its rendered height is ~268px (header 30 + portrait 100 + body ~138).
+   So minimap bottom = 180 + 268 + 6px gap = 454px.
+   Width matches targetHUD width (230px). */
+#miniMap{
+    position:absolute;
+    bottom:454px; right:14px;
+    width:230px; height:150px;
+    background:rgba(0,5,15,0.82);
+    border:1px solid rgba(0,180,255,0.35);
+    box-shadow:0 0 14px rgba(0,100,255,0.15),inset 0 0 20px rgba(0,0,0,0.6);
+    z-index:5; overflow:hidden; border-radius:4px;
+    font-family:'Courier New',monospace;
+}
+#miniMap.hidden{ display:none; }
+#miniMapCanvas{ display:block; width:230px; height:150px; }
+#miniMapLabel{
+    position:absolute; top:3px; left:5px;
+    color:rgba(0,180,255,0.55); font-size:8px;
+    letter-spacing:2px; text-transform:uppercase; pointer-events:none;
+}
+#miniMapToggle{
+    position:absolute; top:3px; right:5px;
+    color:rgba(0,180,255,0.45); font-size:8px;
+    letter-spacing:1px; cursor:pointer; user-select:none;
+}
+
+/* Landscape: targetHUD is top:10px right:170px width:190px, height ~220px.
+   Minimap sits below targetHUD: top = 10 + 220 + 6 = 236px */
+@media (max-width:899px) and (orientation:landscape){
+    #miniMap{
+        top:236px; right:170px;
+        bottom:auto; width:190px; height:110px;
+    }
+    #miniMapCanvas{ width:190px; height:110px; }
+}
+
+/* Portrait: targetHUD is top:36px right:0 width:170px, height ~230px.
+   Minimap sits directly BELOW: top = 36 + 230 = 266px. No top border = flush panel look. */
+@media (max-width:599px) and (orientation:portrait){
+    #miniMap{
+        top:266px; right:0;
+        bottom:auto; left:auto;
+        width:170px; height:130px;
+        border-top:none; border-right:none;
+        border-radius:0 0 0 4px;
+    }
+    #miniMapCanvas{ width:170px; height:130px; }
+}
+
 /* =====================================================
    ORE SHOP OVERLAY
    ===================================================== */
@@ -507,7 +557,8 @@ S = Brake<br>
 LSHIFT = Boost<br>
 <span style="color:#FFD700;">P = Dock  |  O = Mine</span><br>
 <span style="color:#4af;">G = Target HUD</span><br>
-<span style="color:#ff9900;">I = Inventory</span><br><br>
+<span style="color:#ff9900;">I = Inventory</span><br>
+<span style="color:#88ccff;">M = Mini-Map</span><br><br>
 <span style="color:#888;font-size:10px;">Tap toggle to hide</span>
 </div>
 
@@ -536,6 +587,13 @@ LSHIFT = Boost<br>
 <div id="proximityAlert"></div>
 
 <div id="joystickBase"><div id="joystickStick"></div></div>
+
+<!-- MINI-MAP -->
+<div id="miniMap">
+    <canvas id="miniMapCanvas" width="230" height="150"></canvas>
+    <span id="miniMapLabel">◈ NAV</span>
+    <span id="miniMapToggle" onclick="toggleMiniMap()" title="Toggle minimap [M]">✕</span>
+</div>
 
 <div id="actionButtons">
     <button class="action-btn" id="btnDock" disabled>
@@ -792,6 +850,7 @@ document.addEventListener("keydown", (e)=>{
         if(inventoryOpen)  closeInventory();
         else if(!shopOpen) openInventory();
     }
+    if(e.key.toLowerCase() === 'm') toggleMiniMap();
 });
 document.addEventListener("keyup", (e)=>{ keys[e.key.toLowerCase()] = false; });
 
@@ -1010,7 +1069,48 @@ const ORE_TABLE = [
 ];
 const RESOURCE_COST_TIERS={common:{fuel:[10,20],energy:[12,22],armor:[8,15],hp:[5,12]},uncommon:{fuel:[20,32],energy:[22,35],armor:[15,25],hp:[12,22]},rare:{fuel:[30,45],energy:[35,50],armor:[22,35],hp:[20,32]},epic:{fuel:[42,60],energy:[48,65],armor:[30,48],hp:[28,45]}};
 const RESOURCE_POOL=[{key:'fuel',icon:'⛽',label:'FUEL',color:'#ff8800'},{key:'energy',icon:'⚡',label:'ENERGY',color:'#00ccff'},{key:'armor',icon:'🛡',label:'ARMOR',color:'#aaaaaa'},{key:'hp',icon:'❤',label:'HULL HP',color:'#ff3333'}];
-function rollResourceCost(rarityKey){ const tier=RESOURCE_COST_TIERS[rarityKey],res=RESOURCE_POOL[Math.floor(Math.random()*RESOURCE_POOL.length)],range=tier[res.key],amount=range[0]+Math.floor(Math.random()*(range[1]-range[0]+1)); return {...res,amount}; }
+function rollResourceCost(rarityKey){
+    const tier = RESOURCE_COST_TIERS[rarityKey];
+    // For each resource, compute the cost range midpoint and check if player has enough
+    // We pick the resource the player has the most of (relative to its cost), ensuring they can always mine
+    const candidates = [];
+    for(const res of RESOURCE_POOL){
+        const range  = tier[res.key];
+        const minCost = range[0];
+        const maxCost = range[1];
+        const current = ship[res.key];
+        // Safety floor: hp must stay above 1
+        const safeMax = res.key === 'hp' ? current - 1 : current;
+        if(safeMax >= minCost){
+            // How much headroom does the player have above the minimum cost?
+            // Higher headroom = more abundant = preferred
+            candidates.push({ ...res, minCost, maxCost, headroom: safeMax - minCost });
+        }
+    }
+    // If somehow nothing qualifies (extreme edge case), fall back to least-costly resource
+    let chosen;
+    if(candidates.length === 0){
+        // Player is very low on everything — pick the resource with the smallest minimum cost
+        chosen = RESOURCE_POOL.reduce((best, res) => {
+            const minCost = tier[res.key][0];
+            const bestMinCost = tier[best.key][0];
+            return minCost < bestMinCost ? res : best;
+        });
+        const range = tier[chosen.key];
+        const amount = range[0]; // use minimum possible cost
+        return { ...chosen, amount };
+    }
+    // Sort by headroom descending — most abundant resource goes first
+    candidates.sort((a, b) => b.headroom - a.headroom);
+    // Pick from top candidates (top half or at least 1) with weighted random favoring abundance
+    const pool = candidates.slice(0, Math.max(1, Math.ceil(candidates.length / 2)));
+    chosen = pool[Math.floor(Math.random() * pool.length)];
+    // Roll cost within the range the player can actually afford
+    const safeMax = chosen.key === 'hp' ? ship[chosen.key] - 1 : ship[chosen.key];
+    const rollMax = Math.min(chosen.maxCost, safeMax);
+    const amount  = chosen.minCost + Math.floor(Math.random() * (rollMax - chosen.minCost + 1));
+    return { ...chosen, amount };
+}
 const GACHA_PACKS=[
     {id:'basic',   name:'Basic Probe',       icon:'📦',desc:'Surface scan extraction. Low risk, guaranteed result.',                                   costRarityKey:'common',   rarity:'rarity-common',   pool:[{oreId:'iron',weight:50},{oreId:'silica',weight:40},{oreId:'copper',weight:10}]},
     {id:'deep',    name:'Deep Drill',         icon:'🔩',desc:'Sub-surface boring. Moderate resource draw, better yields.',                              costRarityKey:'uncommon', rarity:'rarity-uncommon', pool:[{oreId:'iron',weight:20},{oreId:'copper',weight:30},{oreId:'nickel',weight:25},{oreId:'cobalt',weight:15},{oreId:'titanium',weight:10}]},
@@ -1065,9 +1165,12 @@ function closeOreShop(){ oreShopOpen=false; shopOpen=false; window._shopAsteroid
 function buyGachaPack(packId){
     const pack=GACHA_PACKS.find(p=>p.id===packId); if(!pack) return;
     const rolled=rollResourceCost(pack.costRarityKey);
+    // Safety guard: if even minimum cost can't be met (ship critically low on all resources)
     const current=ship[rolled.key];
-    if(current<rolled.amount){ showNotification(`❌ Not enough ${rolled.label}! Need ${rolled.amount}, have ${Math.round(current)}`); return; }
-    if(rolled.key==='hp'&&current-rolled.amount<1){ showNotification(`⚠ Hull integrity too low — operation would destroy the ship!`); return; }
+    const wouldDestroy=(rolled.key==='hp'&&current-rolled.amount<1);
+    if(wouldDestroy||current<rolled.amount){
+        showNotification(`⚠ Ship resources critically depleted — restock at a planet first!`); return;
+    }
     ship[rolled.key]=Math.max(0,current-rolled.amount);
     if(rolled.key==='hp'||rolled.key==='armor'){ const flash=document.getElementById('hitFlash'); flash.style.background=rolled.key==='hp'?'rgba(255,30,30,0.35)':'rgba(180,180,180,0.25)'; setTimeout(()=>{flash.style.background='rgba(255,30,30,0)';},200); }
     updateHUD(); updateOreShopResourceDisplay();
@@ -1426,6 +1529,160 @@ function updateTargetHUD(){
 }
 
 // =====================================================
+// MINI-MAP
+// =====================================================
+const miniMapCanvas = document.getElementById('miniMapCanvas');
+const mctx = miniMapCanvas.getContext('2d');
+let miniMapVisible = true;
+
+function toggleMiniMap(){
+    miniMapVisible = !miniMapVisible;
+    const el = document.getElementById('miniMap');
+    const toggle = document.getElementById('miniMapToggle');
+    el.classList.toggle('hidden', !miniMapVisible);
+    toggle.textContent = miniMapVisible ? '✕' : '⬡';
+}
+
+function drawMiniMap(){
+    // Sync canvas pixel buffer to its current CSS display size (handles all breakpoints)
+    const cssW = miniMapCanvas.offsetWidth;
+    const cssH = miniMapCanvas.offsetHeight;
+    if(miniMapCanvas.width !== cssW || miniMapCanvas.height !== cssH){
+        miniMapCanvas.width  = cssW;
+        miniMapCanvas.height = cssH;
+    }
+
+    const W = miniMapCanvas.width, H = miniMapCanvas.height;
+    const cx = W / 2, cy = H / 2;
+
+    mctx.clearRect(0, 0, W, H);
+
+    // Background grid
+    mctx.strokeStyle = 'rgba(0,100,200,0.08)';
+    mctx.lineWidth = 1;
+    for(let gx = 0; gx < W; gx += 20){ mctx.beginPath(); mctx.moveTo(gx,0); mctx.lineTo(gx,H); mctx.stroke(); }
+    for(let gy = 0; gy < H; gy += 20){ mctx.beginPath(); mctx.moveTo(0,gy); mctx.lineTo(W,gy); mctx.stroke(); }
+
+    // Scale: fit SCAN_RADIUS * 1.5 screen-space units into the shorter half-dimension
+    const MINIMAP_RANGE = SCAN_RADIUS * 1.5;
+    const SCALE = Math.min(cx, cy) / MINIMAP_RANGE;
+
+    // --- Draw planets ---
+    for(const p of planets){
+        const sdx = p.x - camera.x * p.depth;
+        const sdy = p.y - camera.y * p.depth;
+        const mx = cx + sdx * SCALE;
+        const my = cy + sdy * SCALE;
+
+        const isGreen = p.theme === 'green';
+        const inDock  = isInDockZone(p);
+        const pr      = Math.max(4, p.radius * SCALE);
+        const offMap  = mx < 4 || mx > W-4 || my < 4 || my > H-4;
+        const clampedMx = Math.max(6, Math.min(W-6, mx));
+        const clampedMy = Math.max(6, Math.min(H-6, my));
+
+        if(inDock){ mctx.shadowBlur = 10; mctx.shadowColor = isGreen ? '#00ff66' : '#00aaff'; }
+
+        if(offMap){
+            const ang = Math.atan2(sdy, sdx);
+            mctx.save();
+            mctx.translate(clampedMx, clampedMy);
+            mctx.rotate(ang);
+            mctx.fillStyle = isGreen ? 'rgba(0,220,100,0.7)' : 'rgba(0,160,255,0.7)';
+            mctx.beginPath();
+            mctx.moveTo(6,0); mctx.lineTo(-4,-4); mctx.lineTo(-4,4);
+            mctx.closePath(); mctx.fill();
+            mctx.restore();
+        } else {
+            const grad = mctx.createRadialGradient(mx, my, 0, mx, my, pr);
+            grad.addColorStop(0, isGreen ? '#44ee88' : '#4488ff');
+            grad.addColorStop(1, isGreen ? '#006622' : '#001166');
+            mctx.fillStyle = grad;
+            mctx.beginPath();
+            mctx.arc(mx, my, pr, 0, Math.PI*2);
+            mctx.fill();
+
+            const dockR = (p.radius + DOCK_BUFFER) * SCALE;
+            mctx.strokeStyle = inDock
+                ? (isGreen ? 'rgba(0,255,100,0.6)' : 'rgba(0,200,255,0.6)')
+                : (isGreen ? 'rgba(0,180,60,0.2)'  : 'rgba(0,120,255,0.2)');
+            mctx.lineWidth = 0.8;
+            mctx.setLineDash([3,4]);
+            mctx.beginPath();
+            mctx.arc(mx, my, dockR, 0, Math.PI*2);
+            mctx.stroke();
+            mctx.setLineDash([]);
+
+            mctx.fillStyle = isGreen ? 'rgba(100,255,160,0.75)' : 'rgba(120,200,255,0.75)';
+            mctx.font = '7px Courier New';
+            mctx.textAlign = 'center';
+            mctx.fillText(p.name, mx, Math.min(H-2, my + pr + 8));
+            mctx.textAlign = 'left';
+        }
+        mctx.shadowBlur = 0;
+    }
+
+    // --- Draw asteroids ---
+    for(const a of asteroids){
+        const sdx = a.x - camera.x * a.depth;
+        const sdy = a.y - camera.y * a.depth;
+        const mx = cx + sdx * SCALE;
+        const my = cy + sdy * SCALE;
+        if(mx < -10 || mx > W+10 || my < -10 || my > H+10) continue;
+
+        const inDock = isInAsteroidDockZone(a);
+        const ar     = Math.max(2, a.radius * SCALE * 0.7);
+        const tierColors = ['#b09070','#907055','#6e5038'];
+        const col = tierColors[Math.max(0, ASTEROID_TIERS.indexOf(a.tier))];
+
+        if(inDock){ mctx.shadowBlur = 8; mctx.shadowColor = '#ff9900'; }
+        mctx.fillStyle = inDock ? '#ffaa33' : col;
+        mctx.beginPath();
+        mctx.arc(mx, my, ar, 0, Math.PI*2);
+        mctx.fill();
+        mctx.shadowBlur = 0;
+
+        if(inDock){
+            const dockR = (a.radius + ASTEROID_DOCK_BUFFER) * SCALE;
+            mctx.strokeStyle = 'rgba(255,160,0,0.55)';
+            mctx.lineWidth = 0.8;
+            mctx.setLineDash([3,4]);
+            mctx.beginPath();
+            mctx.arc(mx, my, dockR, 0, Math.PI*2);
+            mctx.stroke();
+            mctx.setLineDash([]);
+        }
+    }
+
+    // --- Player ship (always center) ---
+    mctx.save();
+    mctx.translate(cx, cy);
+    mctx.rotate(ship.angle);
+    mctx.fillStyle = '#FFD700';
+    mctx.shadowBlur = 10;
+    mctx.shadowColor = '#FFD700';
+    mctx.beginPath();
+    mctx.moveTo(5,0); mctx.lineTo(-4,-3.5); mctx.lineTo(-2,0); mctx.lineTo(-4,3.5);
+    mctx.closePath();
+    mctx.fill();
+    mctx.shadowBlur = 0;
+    mctx.restore();
+
+    // Scan radius ring
+    const scanPR = SCAN_RADIUS * SCALE;
+    mctx.strokeStyle = 'rgba(0,180,255,0.1)';
+    mctx.lineWidth = 1;
+    mctx.beginPath();
+    mctx.arc(cx, cy, scanPR, 0, Math.PI*2);
+    mctx.stroke();
+
+    // Inner border glow
+    mctx.strokeStyle = 'rgba(0,120,255,0.2)';
+    mctx.lineWidth = 1;
+    mctx.strokeRect(0.5, 0.5, W-1, H-1);
+}
+
+// =====================================================
 // MAIN LOOP
 // =====================================================
 function loop(){
@@ -1434,6 +1691,7 @@ function loop(){
     for(const p of planets) drawPlanetBody(p);
     drawAsteroids(); drawStars(); drawShip();
     updateTargetHUD(); updateActionButtons();
+    if(miniMapVisible) drawMiniMap();
     requestAnimationFrame(loop);
 }
 loop();
