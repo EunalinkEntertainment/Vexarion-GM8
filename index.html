@@ -697,6 +697,17 @@ LSHIFT = Boost<br>
             <div class="ors-stat"><span class="ors-icon" style="color:#00ccff;">⚡</span><span class="ors-name">ENERGY</span><span class="ors-val" id="orsEnergy">100</span></div>
         </div>
     </div>
+    <!-- Asteroid Integrity Display -->
+    <div id="asteroidIntegrityWrap" style="background:#110900;border:1px solid #442200;padding:10px 14px;margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <span style="color:#cc7700;font-size:11px;letter-spacing:2px;font-family:'Courier New',monospace;">⛏ ASTEROID INTEGRITY</span>
+            <span id="asteroidIntegrityPct" style="color:#FFD700;font-size:13px;font-weight:bold;font-family:'Courier New',monospace;">100%</span>
+        </div>
+        <div style="width:100%;height:8px;background:rgba(255,255,255,0.07);border:1px solid #332200;position:relative;overflow:hidden;">
+            <div id="asteroidIntegrityBar" style="height:100%;width:100%;background:#ff8800;transition:width 0.4s,background 0.4s;"></div>
+        </div>
+        <div id="asteroidIntegrityDesc" style="color:#886633;font-size:10px;letter-spacing:1px;margin-top:5px;font-family:'Courier New',monospace;">STRUCTURAL STATUS: INTACT</div>
+    </div>
     <div class="gacha-section-title">◈ EXTRACTION PACKAGES</div>
     <div class="gacha-grid" id="gachaGrid"></div>
     <button id="closeOreShop" onclick="closeOreShop()">⬅ LEAVE ASTEROID</button>
@@ -1249,6 +1260,31 @@ function rollGachaPack(pack){
 // =====================================================
 // ORE SHOP
 // =====================================================
+function updateAsteroidIntegrityDisplay(){
+    const asteroid = window._shopAsteroid;
+    if(!asteroid) return;
+    const pct = Math.max(0, Math.round((asteroid.integrity / asteroid.maxIntegrity) * 100));
+    const barEl  = document.getElementById('asteroidIntegrityBar');
+    const pctEl  = document.getElementById('asteroidIntegrityPct');
+    const descEl = document.getElementById('asteroidIntegrityDesc');
+    if(!barEl) return;
+    barEl.style.width = pct + '%';
+    pctEl.textContent = pct + '%';
+    // Colour shifts: green → yellow → orange → red
+    let barColor, descText;
+    if(pct > 70){       barColor = '#00cc66'; descText = 'STRUCTURAL STATUS: INTACT';         pctEl.style.color='#00ff88'; }
+    else if(pct > 40){  barColor = '#ffcc00'; descText = 'STRUCTURAL STATUS: STRESSED';       pctEl.style.color='#FFD700'; }
+    else if(pct > 15){  barColor = '#ff6600'; descText = 'STRUCTURAL STATUS: FRACTURING';     pctEl.style.color='#ff8800'; }
+    else if(pct > 0){   barColor = '#ff2222'; descText = 'STRUCTURAL STATUS: CRITICAL — FINAL OPS'; pctEl.style.color='#ff3333'; }
+    else {              barColor = '#550000'; descText = 'STRUCTURAL STATUS: DESTROYED';      pctEl.style.color='#880000'; }
+    barEl.style.background = barColor;
+    descEl.textContent = descText;
+    descEl.style.color = barColor;
+    // Grey out gacha cards if integrity is 0
+    const gachaCards = document.querySelectorAll('.gacha-card');
+    gachaCards.forEach(c => { c.style.opacity = pct <= 0 ? '0.3' : '1'; c.style.pointerEvents = pct <= 0 ? 'none' : ''; });
+}
+
 let oreShopOpen=false;
 function openAsteroidShop(asteroid){
     oreShopOpen=true; shopOpen=true; window._shopAsteroid=asteroid;
@@ -1263,6 +1299,7 @@ function openAsteroidShop(asteroid){
         html+=`<div class="gacha-card ${pack.rarity}" onclick="buyGachaPack('${pack.id}')"><div class="gc-rarity-bar"></div><div class="gc-icon">${pack.icon}</div><div class="gc-name">${pack.name}</div><div class="gc-desc">${pack.desc}</div><div class="gc-pool">Possible: ${poolNames}</div><div class="gc-cost-range"><div class="gc-cost-label">⚠ RANDOM RESOURCE DRAIN</div><div class="gc-cost-values">${rangeHtml}</div></div><div style="margin-top:6px;padding:5px 8px;background:rgba(0,0,0,0.3);border:1px solid ${degradeColor}44;font-size:9px;letter-spacing:1px;color:${degradeColor};">⚠ CAP DEGRADE RISK: ${degradePct}%</div></div>`;
     }
     document.getElementById('gachaGrid').innerHTML=html;
+    updateAsteroidIntegrityDisplay();
     document.getElementById('oreShopOverlay').style.display='flex';
 }
 function updateOreShopResourceDisplay(){
@@ -1300,6 +1337,17 @@ function rollCapacityDegrade(pack){
 
 function buyGachaPack(packId){
     const pack=GACHA_PACKS.find(p=>p.id===packId); if(!pack) return;
+    const asteroid = window._shopAsteroid;
+
+    // Guard: asteroid exhausted or destroyed
+    if(asteroid && (asteroid.destroyed || asteroid.integrity <= 0)){
+        showNotification('⛏ This asteroid has been fully mined — nothing left to extract!'); return;
+    }
+    // Guard: asteroid too small to mine
+    if(asteroid && asteroid.radius < ASTEROID_MIN_MINABLE_RADIUS){
+        showNotification('⛏ Asteroid fragment too small — cannot extract further!'); return;
+    }
+
     const rolled=rollResourceCost(pack.costRarityKey);
     const current=ship[rolled.key];
     const wouldDestroy=(rolled.key==='hp'&&current-rolled.amount<1);
@@ -1312,6 +1360,39 @@ function buyGachaPack(packId){
     updateHUD(); updateOreShopResourceDisplay();
     const {ore,amount}=rollGachaPack(pack);
     addToCargo(ore.id,amount);
+
+    // ── Asteroid degradation ──────────────────────────────────────────────
+    if(asteroid){
+        // Decrement integrity
+        asteroid.integrity = Math.max(0, asteroid.integrity - 1);
+
+        // Shrink radius by a randomised percentage of current radius
+        const shrinkFactor = RADIUS_SHRINK_PER_OP_FACTOR * (0.7 + Math.random() * 0.6); // ±30%
+        const newRadius = Math.max(2, asteroid.radius * (1 - shrinkFactor));
+        asteroid.radius = newRadius;
+        // Rebuild shape to match new radius so the polygon visually matches
+        const rng = seededRand(asteroid.seed + asteroid.maxIntegrity - asteroid.integrity);
+        asteroid.shape = buildAsteroidShape(newRadius, rng);
+
+        // Check for destruction
+        if(asteroid.integrity <= 0 || asteroid.radius < ASTEROID_MIN_MINABLE_RADIUS){
+            asteroid.destroyed = true;
+            asteroid.integrity = 0;
+        }
+
+        // Update the integrity bar in the UI
+        updateAsteroidIntegrityDisplay();
+
+        // If destroyed, close the shop after showing the result
+        if(asteroid.destroyed){
+            setTimeout(()=>{
+                closeOreShop();
+                showNotification('💥 ASTEROID DESTROYED — fully excavated!', 2800);
+            }, 1800);
+        }
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
     showGachaReveal(ore,amount,rolled,degrade);
 }
 function showGachaReveal(ore,amount,rolledCost,degrade){
@@ -1381,13 +1462,30 @@ function buyItem(itemId){
 }
 
 // ── Mobile: force-release pressed state on shop buttons after touch ──
-// On iOS/Android the browser holds :active until the next tap, making buy
-// buttons stay green. We blur the button after touchend so it resets immediately.
+// On iOS/Android the browser can hold :active and hover states after a tap,
+// keeping buy/sell buttons visually stuck in their "active" (green fill) state.
+// We force a reset by: blur() to kill focus, plus a brief class that overrides
+// the :hover/:active styles, removed on the next frame so transition plays cleanly.
 (function(){
+    // Inject the override class once into the document
+    const styleTag = document.createElement('style');
+    styleTag.textContent = '.touch-released { background:#2a2a2a !important; color:#00ff00 !important; border-color:#00ff00 !important; }' +
+        '.touch-released.sellButton { background:#2a1800 !important; color:#cc7700 !important; border-color:#cc7700 !important; }';
+    document.head.appendChild(styleTag);
+
     function releaseTouchBtn(e){
         const btn = e.target.closest('button');
         if(!btn) return;
-        setTimeout(()=>{ btn.blur(); }, 120);
+        // Immediate blur removes focus ring and kills :focus-visible
+        btn.blur();
+        // Apply override class to snap out of :active / hover state
+        btn.classList.add('touch-released');
+        // Remove on next paint so the CSS transition animates back cleanly
+        requestAnimationFrame(function(){
+            requestAnimationFrame(function(){
+                btn.classList.remove('touch-released');
+            });
+        });
     }
     ['shopContainer','oreShopContainer'].forEach(function(id){
         const el = document.getElementById(id);
@@ -1636,19 +1734,74 @@ const ASTEROID_TIERS=[
     {label:'medium',rMin:16,rMax:28,speedMin:0.2, speedMax:0.55,armorDmg:14,hpDmg:9, color:'#907055'},
     {label:'large', rMin:30,rMax:46,speedMin:0.08,speedMax:0.3, armorDmg:24,hpDmg:18,color:'#6e5038'},
 ];
-const ASTEROIDS_PER_PLANET=3,ORBIT_RADIUS_MIN=300,ORBIT_RADIUS_MAX=550,ASTEROID_DEPTH=0.5;
+// Asteroid count & orbit bands — 12 per planet across 3 rings
+const ASTEROIDS_PER_PLANET = 12;
+const ORBIT_BANDS = [
+    { rMin: 260, rMax: 420 },   // inner belt  — 4 asteroids
+    { rMin: 450, rMax: 620 },   // mid belt    — 4 asteroids
+    { rMin: 650, rMax: 850 },   // outer belt  — 4 asteroids
+];
+const ASTEROID_DEPTH = 0.5;
+// Integrity: how many mining ops an asteroid can survive before destruction
+// Small=3, Medium=6, Large=10  (scales with visual size category)
+const INTEGRITY_BY_TIER = { small:3, medium:6, large:10 };
+// Minimum radius at which an asteroid can still be mined (too small = exhausted)
+const ASTEROID_MIN_MINABLE_RADIUS = 10;
+// How much radius shrinks per mining op (base — randomised ±30%)
+const RADIUS_SHRINK_PER_OP_FACTOR = 0.18; // 18% of current radius
+
 function seededRand(seed){ let s=seed|0; return()=>{ s=(Math.imul(s,1664525)+1013904223)|0; return(s>>>0)/4294967296; }; }
 function buildAsteroidShape(radius,rng){ const vertCount=8+Math.floor(rng()*5),shape=[]; for(let v=0;v<vertCount;v++){const a=(v/vertCount)*Math.PI*2,r=radius*(0.62+rng()*0.38);shape.push({a,r});} return shape; }
+
 const asteroids=[];
+let _asteroidIdCounter = 0;
+
 function spawnAsteroidsForPlanet(planet){
-    for(let i=0;i<ASTEROIDS_PER_PLANET;i++){
-        const tier=ASTEROID_TIERS[i%ASTEROID_TIERS.length];
-        const baseAngle=(i/ASTEROIDS_PER_PLANET)*Math.PI*2,jitter=(Math.random()-0.5)*(Math.PI/3),orbitAngle=baseAngle+jitter;
-        const orbitDist=ORBIT_RADIUS_MIN+Math.random()*(ORBIT_RADIUS_MAX-ORBIT_RADIUS_MIN);
-        const wx=planet.x+Math.cos(orbitAngle)*orbitDist,wy=planet.y+Math.sin(orbitAngle)*orbitDist;
-        const speed=tier.speedMin+Math.random()*(tier.speedMax-tier.speedMin),driftAngle=Math.random()*Math.PI*2;
-        const radius=tier.rMin+Math.random()*(tier.rMax-tier.rMin),seed=Math.floor(Math.random()*999999),rng=seededRand(seed);
-        asteroids.push({x:wx,y:wy,vx:Math.cos(driftAngle)*speed,vy:Math.sin(driftAngle)*speed,radius,depth:ASTEROID_DEPTH,rotation:Math.random()*Math.PI*2,rotSpeed:(Math.random()-0.5)*0.018,tier,shape:buildAsteroidShape(radius,rng),hitCooldown:0,planetId:planet.id});
+    const perBand = ASTEROIDS_PER_PLANET / ORBIT_BANDS.length; // 4 per band
+    // Tier weight per band: inner=mostly small, mid=mixed, outer=mostly large
+    const bandTierWeights = [
+        [6, 3, 1],   // inner: 60% small, 30% medium, 10% large
+        [3, 4, 3],   // mid  : 30% small, 40% medium, 30% large
+        [1, 3, 6],   // outer: 10% small, 30% medium, 60% large
+    ];
+    function pickTierByWeight(weights){
+        const total = weights.reduce((s,w)=>s+w,0);
+        let roll = Math.random()*total;
+        for(let i=0;i<weights.length;i++){ roll-=weights[i]; if(roll<=0) return ASTEROID_TIERS[i]; }
+        return ASTEROID_TIERS[ASTEROID_TIERS.length-1];
+    }
+    for(let b=0;b<ORBIT_BANDS.length;b++){
+        const band = ORBIT_BANDS[b];
+        for(let i=0;i<perBand;i++){
+            const tier = pickTierByWeight(bandTierWeights[b]);
+            // Spread evenly around the planet with jitter so they don't clump
+            const baseAngle = ((b*perBand+i)/(ASTEROIDS_PER_PLANET))*Math.PI*2;
+            const jitter = (Math.random()-0.5)*(Math.PI/(perBand*0.8));
+            const orbitAngle = baseAngle + jitter;
+            const orbitDist  = band.rMin + Math.random()*(band.rMax-band.rMin);
+            const wx = planet.x + Math.cos(orbitAngle)*orbitDist;
+            const wy = planet.y + Math.sin(orbitAngle)*orbitDist;
+            const speed = tier.speedMin + Math.random()*(tier.speedMax-tier.speedMin);
+            const driftAngle = Math.random()*Math.PI*2;
+            const radius = tier.rMin + Math.random()*(tier.rMax-tier.rMin);
+            const seed   = Math.floor(Math.random()*999999);
+            const rng    = seededRand(seed);
+            const maxIntegrity = INTEGRITY_BY_TIER[tier.label];
+            asteroids.push({
+                id: _asteroidIdCounter++,
+                x:wx, y:wy,
+                vx:Math.cos(driftAngle)*speed, vy:Math.sin(driftAngle)*speed,
+                radius, baseRadius: radius,        // baseRadius = original size
+                depth:ASTEROID_DEPTH,
+                rotation:Math.random()*Math.PI*2,
+                rotSpeed:(Math.random()-0.5)*0.018,
+                tier, shape:buildAsteroidShape(radius,rng), seed,
+                hitCooldown:0, planetId:planet.id,
+                integrity: maxIntegrity,           // current integrity
+                maxIntegrity,                      // max integrity (for % calc)
+                destroyed: false,
+            });
+        }
     }
 }
 for(const p of planets) spawnAsteroidsForPlanet(p);
@@ -1656,8 +1809,8 @@ for(const p of planets) spawnAsteroidsForPlanet(p);
 function getAsteroidScreenPos(a){ return{x:a.x-camera.x*a.depth+canvas.width/2,y:a.y-camera.y*a.depth+canvas.height/2}; }
 function getDistanceToAsteroid(a){ const as=getAsteroidScreenPos(a),ss=getShipScreenPos(),dx=ss.x-as.x,dy=ss.y-as.y; return Math.sqrt(dx*dx+dy*dy); }
 function isInAsteroidDockZone(a){ return getDistanceToAsteroid(a)<a.radius+ASTEROID_DOCK_BUFFER; }
-function getNearestScannableAsteroid(){ let n=null,nd=Infinity; for(const a of asteroids){ const d=getDistanceToAsteroid(a); if(d<ASTEROID_SCAN_RADIUS&&d<nd){nd=d;n=a;} } return n; }
-function getNearestDockableAsteroid(){ let n=null,nd=Infinity; for(const a of asteroids){ const d=getDistanceToAsteroid(a); if(isInAsteroidDockZone(a)&&d<nd){nd=d;n=a;} } return n; }
+function getNearestScannableAsteroid(){ let n=null,nd=Infinity; for(const a of asteroids){ if(a.destroyed) continue; const d=getDistanceToAsteroid(a); if(d<ASTEROID_SCAN_RADIUS&&d<nd){nd=d;n=a;} } return n; }
+function getNearestDockableAsteroid(){ let n=null,nd=Infinity; for(const a of asteroids){ if(a.destroyed) continue; const d=getDistanceToAsteroid(a); if(isInAsteroidDockZone(a)&&d<nd){nd=d;n=a;} } return n; }
 
 const hitFlashEl=document.getElementById('hitFlash');
 let hitFlashFrames=0;
@@ -1673,6 +1826,7 @@ function applyAsteroidDamage(asteroid){
 function updateAsteroids(){
     if(hitFlashFrames>0){ hitFlashFrames--; if(hitFlashFrames===0) hitFlashEl.style.background='rgba(255,30,30,0)'; }
     for(const a of asteroids){
+        if(a.destroyed) continue;
         a.x+=a.vx; a.y+=a.vy; a.rotation+=a.rotSpeed;
         if(a.hitCooldown>0) a.hitCooldown--;
         if(ship.invincibleFrames===0&&a.hitCooldown===0){
@@ -1685,6 +1839,7 @@ function lightenHex(hex,amt){ const r=Math.min(255,parseInt(hex.slice(1,3),16)+a
 function darkenHex(hex,amt){ const r=Math.max(0,parseInt(hex.slice(1,3),16)-amt),g=Math.max(0,parseInt(hex.slice(3,5),16)-amt),b=Math.max(0,parseInt(hex.slice(5,7),16)-amt); return`rgb(${r},${g},${b})`; }
 function drawAsteroids(){
     for(const a of asteroids){
+        if(a.destroyed) continue;
         const as=getAsteroidScreenPos(a),ax=as.x,ay=as.y;
         if(ax<-150||ax>canvas.width+150||ay<-150||ay>canvas.height+150) continue;
         const col=a.tier.color;
@@ -1856,6 +2011,7 @@ function drawMiniMap(){
         mctx.shadowBlur = 0;
     }
     for(const a of asteroids){
+        if(a.destroyed) continue;
         const sdx = a.x - camera.x * a.depth;
         const sdy = a.y - camera.y * a.depth;
         const mx = cx + sdx * SCALE;
