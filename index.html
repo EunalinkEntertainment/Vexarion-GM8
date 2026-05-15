@@ -204,9 +204,9 @@ canvas{ display:block; }
     z-index:5; overflow:hidden; font-family:'Courier New',monospace; transition:opacity 0.3s;
 }
 #targetHUD.hidden{ opacity:0; pointer-events:none; }
-.thud-header{ background:rgba(0,100,200,0.2); border-bottom:1px solid rgba(0,180,255,0.25); padding:6px 10px; display:flex; justify-content:space-between; align-items:center; }
+.thud-header{ background:rgba(0,100,200,0.2); border-bottom:1px solid rgba(0,180,255,0.25); padding:6px 10px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
 .thud-title{ color:#4af; font-size:10px; letter-spacing:2px; text-transform:uppercase; font-weight:bold; }
-.thud-toggle-hint{ color:rgba(100,160,255,0.5); font-size:9px; letter-spacing:1px; }
+.thud-toggle-hint{ color:rgba(100,160,255,0.5); font-size:9px; letter-spacing:1px; padding:6px 8px; margin:-6px -10px; cursor:pointer; user-select:none; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
 #planetPortraitWrap{ position:relative; width:100%; height:100px; background:#000; border-bottom:1px solid rgba(0,180,255,0.2); overflow:hidden; }
 #planetPortrait{ display:block; width:100%; height:100%; }
 .portrait-label{ position:absolute; bottom:6px; left:0; right:0; text-align:center; color:rgba(200,230,255,0.9); font-size:12px; font-weight:bold; letter-spacing:1px; text-shadow:0 0 8px rgba(0,150,255,0.8); pointer-events:none; }
@@ -260,6 +260,9 @@ canvas{ display:block; }
     font-family:'Courier New',monospace;
 }
 #miniMap.hidden{ display:none; }
+/* collapsed: canvas hidden, only the label+toggle strip remains visible as a thin bar */
+#miniMap.collapsed{ height:20px; overflow:hidden; }
+#miniMap.collapsed #miniMapCanvas{ display:none; }
 #miniMapCanvas{ display:block; width:230px; height:150px; }
 #miniMapLabel{
     position:absolute; top:3px; left:5px;
@@ -267,9 +270,13 @@ canvas{ display:block; }
     letter-spacing:2px; text-transform:uppercase; pointer-events:none;
 }
 #miniMapToggle{
-    position:absolute; top:3px; right:5px;
-    color:rgba(0,180,255,0.45); font-size:8px;
+    position:absolute; top:0; right:0;
+    width:32px; height:24px;
+    display:flex; align-items:center; justify-content:center;
+    color:rgba(0,180,255,0.55); font-size:10px;
     letter-spacing:1px; cursor:pointer; user-select:none;
+    -webkit-tap-highlight-color:transparent; touch-action:manipulation;
+    z-index:2;
 }
 
 /* Landscape: targetHUD is top:10px right:170px width:190px, height ~220px.
@@ -592,7 +599,7 @@ LSHIFT = Boost<br>
 <div id="miniMap">
     <canvas id="miniMapCanvas" width="230" height="150"></canvas>
     <span id="miniMapLabel">◈ NAV</span>
-    <span id="miniMapToggle" onclick="toggleMiniMap()" title="Toggle minimap [M]">✕</span>
+    <span id="miniMapToggle">✕</span>
 </div>
 
 <div id="actionButtons">
@@ -757,6 +764,12 @@ window.addEventListener("resize", ()=>{
 let shopOpen = false;
 let credits = 1000;
 let targetHudVisible = true;
+function toggleTargetHUD(){
+    targetHudVisible = !targetHudVisible;
+    const hud = document.getElementById('targetHUD');
+    if(targetHudVisible) hud.classList.remove('hidden');
+    else hud.classList.add('hidden');
+}
 
 // =====================================================
 // CONSTANTS
@@ -840,12 +853,7 @@ document.addEventListener("keydown", (e)=>{
         const nearAsteroid = getNearestDockableAsteroid();
         if(nearAsteroid) openAsteroidShop(nearAsteroid);
     }
-    if(e.key.toLowerCase() === 'g'){
-        targetHudVisible = !targetHudVisible;
-        const hud = document.getElementById('targetHUD');
-        if(targetHudVisible) hud.classList.remove('hidden');
-        else hud.classList.add('hidden');
-    }
+    if(e.key.toLowerCase() === 'g') toggleTargetHUD();
     if(e.key.toLowerCase() === 'i'){
         if(inventoryOpen)  closeInventory();
         else if(!shopOpen) openInventory();
@@ -1112,10 +1120,10 @@ function rollResourceCost(rarityKey){
     return { ...chosen, amount };
 }
 const GACHA_PACKS=[
-    {id:'basic',   name:'Basic Probe',       icon:'📦',desc:'Surface scan extraction. Low risk, guaranteed result.',                                   costRarityKey:'common',   rarity:'rarity-common',   pool:[{oreId:'iron',weight:50},{oreId:'silica',weight:40},{oreId:'copper',weight:10}]},
-    {id:'deep',    name:'Deep Drill',         icon:'🔩',desc:'Sub-surface boring. Moderate resource draw, better yields.',                              costRarityKey:'uncommon', rarity:'rarity-uncommon', pool:[{oreId:'iron',weight:20},{oreId:'copper',weight:30},{oreId:'nickel',weight:25},{oreId:'cobalt',weight:15},{oreId:'titanium',weight:10}]},
-    {id:'seismic', name:'Seismic Burst',      icon:'💥',desc:'Explosive fracture mining. High resource toll, rare materials accessible.',               costRarityKey:'rare',     rarity:'rarity-rare',     pool:[{oreId:'copper',weight:15},{oreId:'cobalt',weight:15},{oreId:'titanium',weight:30},{oreId:'iridium',weight:25},{oreId:'darkcrystal',weight:15}]},
-    {id:'quantum', name:'Quantum Core Tap',   icon:'✨',desc:'Experimental deep-field resonance. Extreme resource drain — legendary yields possible.',   costRarityKey:'epic',     rarity:'rarity-epic',     pool:[{oreId:'titanium',weight:15},{oreId:'iridium',weight:20},{oreId:'darkcrystal',weight:30},{oreId:'vexorite',weight:35}]},
+    {id:'basic',   name:'Basic Probe',       icon:'📦',desc:'Surface scan extraction. Low risk, guaranteed result.',                                   costRarityKey:'common',   rarity:'rarity-common',   degradeChance:0.08, pool:[{oreId:'iron',weight:50},{oreId:'silica',weight:40},{oreId:'copper',weight:10}]},
+    {id:'deep',    name:'Deep Drill',         icon:'🔩',desc:'Sub-surface boring. Moderate resource draw, better yields.',                              costRarityKey:'uncommon', rarity:'rarity-uncommon', degradeChance:0.20, pool:[{oreId:'iron',weight:20},{oreId:'copper',weight:30},{oreId:'nickel',weight:25},{oreId:'cobalt',weight:15},{oreId:'titanium',weight:10}]},
+    {id:'seismic', name:'Seismic Burst',      icon:'💥',desc:'Explosive fracture mining. High resource toll, rare materials accessible.',               costRarityKey:'rare',     rarity:'rarity-rare',     degradeChance:0.38, pool:[{oreId:'copper',weight:15},{oreId:'cobalt',weight:15},{oreId:'titanium',weight:30},{oreId:'iridium',weight:25},{oreId:'darkcrystal',weight:15}]},
+    {id:'quantum', name:'Quantum Core Tap',   icon:'✨',desc:'Experimental deep-field resonance. Extreme resource drain — legendary yields possible.',   costRarityKey:'epic',     rarity:'rarity-epic',     degradeChance:0.60, pool:[{oreId:'titanium',weight:15},{oreId:'iridium',weight:20},{oreId:'darkcrystal',weight:30},{oreId:'vexorite',weight:35}]},
 ];
 
 // =====================================================
@@ -1148,7 +1156,9 @@ function openAsteroidShop(asteroid){
         const poolNames=pack.pool.map(e=>{const ore=ORE_TABLE.find(o=>o.id===e.oreId);return ore?ore.name:e.oreId;}).join(', ');
         const tier=RESOURCE_COST_TIERS[pack.costRarityKey];
         const rangeHtml=RESOURCE_POOL.map(r=>`<span style="color:${r.color};font-size:10px;">${r.icon} ${tier[r.key][0]}–${tier[r.key][1]}</span>`).join(' &nbsp;');
-        html+=`<div class="gacha-card ${pack.rarity}" onclick="buyGachaPack('${pack.id}')"><div class="gc-rarity-bar"></div><div class="gc-icon">${pack.icon}</div><div class="gc-name">${pack.name}</div><div class="gc-desc">${pack.desc}</div><div class="gc-pool">Possible: ${poolNames}</div><div class="gc-cost-range"><div class="gc-cost-label">⚠ RANDOM RESOURCE DRAIN</div><div class="gc-cost-values">${rangeHtml}</div></div></div>`;
+        const degradePct=Math.round(pack.degradeChance*100);
+        const degradeColor=pack.degradeChance<0.15?'#667744':pack.degradeChance<0.35?'#997733':pack.degradeChance<0.55?'#cc5522':'#ff3311';
+        html+=`<div class="gacha-card ${pack.rarity}" onclick="buyGachaPack('${pack.id}')"><div class="gc-rarity-bar"></div><div class="gc-icon">${pack.icon}</div><div class="gc-name">${pack.name}</div><div class="gc-desc">${pack.desc}</div><div class="gc-pool">Possible: ${poolNames}</div><div class="gc-cost-range"><div class="gc-cost-label">⚠ RANDOM RESOURCE DRAIN</div><div class="gc-cost-values">${rangeHtml}</div></div><div style="margin-top:6px;padding:5px 8px;background:rgba(0,0,0,0.3);border:1px solid ${degradeColor}44;font-size:9px;letter-spacing:1px;color:${degradeColor};">⚠ CAP DEGRADE RISK: ${degradePct}%</div></div>`;
     }
     document.getElementById('gachaGrid').innerHTML=html;
     document.getElementById('oreShopOverlay').style.display='flex';
@@ -1162,10 +1172,37 @@ function updateOreShopResourceDisplay(){
     low('orsHP',ship.hp); low('orsArmor',ship.armor); low('orsFuel',ship.fuel); low('orsEnergy',ship.energy);
 }
 function closeOreShop(){ oreShopOpen=false; shopOpen=false; window._shopAsteroid=null; document.getElementById('oreShopOverlay').style.display='none'; }
+// =====================================================
+// CAPACITY DEGRADATION
+// =====================================================
+// maxKey → label/icon/color for display
+const DEGRADE_DEFS = [
+    { maxKey:'maxHp',     statKey:'hp',     label:'Hull Integrity', icon:'❤',  color:'#ff4444', floor:20 },
+    { maxKey:'maxArmor',  statKey:'armor',  label:'Armor Plating',  icon:'🛡', color:'#aaaaaa', floor:20 },
+    { maxKey:'maxFuel',   statKey:'fuel',   label:'Fuel Tank',       icon:'⛽', color:'#ff8800', floor:20 },
+    { maxKey:'maxEnergy', statKey:'energy', label:'Energy Cap',      icon:'⚡', color:'#00ccff', floor:20 },
+];
+// degradeAmount range per pack difficulty
+const DEGRADE_AMOUNT = { common:{min:1,max:3}, uncommon:{min:2,max:5}, rare:{min:4,max:8}, epic:{min:6,max:12} };
+
+function rollCapacityDegrade(pack){
+    if(Math.random() > pack.degradeChance) return null; // no degrade this time
+    const range  = DEGRADE_AMOUNT[pack.costRarityKey];
+    const amount = range.min + Math.floor(Math.random() * (range.max - range.min + 1));
+    // Pick a random stat whose max is still above floor + amount (so degrading is meaningful)
+    const eligible = DEGRADE_DEFS.filter(d => ship[d.maxKey] - amount >= d.floor);
+    if(!eligible.length) return null;
+    const def    = eligible[Math.floor(Math.random() * eligible.length)];
+    // Apply degradation
+    ship[def.maxKey] = Math.max(def.floor, ship[def.maxKey] - amount);
+    // Clamp current value if it now exceeds new max
+    if(ship[def.statKey] > ship[def.maxKey]) ship[def.statKey] = ship[def.maxKey];
+    return { ...def, amount };
+}
+
 function buyGachaPack(packId){
     const pack=GACHA_PACKS.find(p=>p.id===packId); if(!pack) return;
     const rolled=rollResourceCost(pack.costRarityKey);
-    // Safety guard: if even minimum cost can't be met (ship critically low on all resources)
     const current=ship[rolled.key];
     const wouldDestroy=(rolled.key==='hp'&&current-rolled.amount<1);
     if(wouldDestroy||current<rolled.amount){
@@ -1173,17 +1210,38 @@ function buyGachaPack(packId){
     }
     ship[rolled.key]=Math.max(0,current-rolled.amount);
     if(rolled.key==='hp'||rolled.key==='armor'){ const flash=document.getElementById('hitFlash'); flash.style.background=rolled.key==='hp'?'rgba(255,30,30,0.35)':'rgba(180,180,180,0.25)'; setTimeout(()=>{flash.style.background='rgba(255,30,30,0)';},200); }
+    // Roll capacity degradation
+    const degrade = rollCapacityDegrade(pack);
     updateHUD(); updateOreShopResourceDisplay();
     const {ore,amount}=rollGachaPack(pack);
     addToCargo(ore.id,amount);
-    showGachaReveal(ore,amount,rolled);
+    showGachaReveal(ore,amount,rolled,degrade);
 }
-function showGachaReveal(ore,amount,rolledCost){
+function showGachaReveal(ore,amount,rolledCost,degrade){
     document.getElementById('grIcon').textContent=ore.icon;
     document.getElementById('grName').textContent=ore.name; document.getElementById('grName').style.color=ore.color;
     document.getElementById('grAmount').textContent=`× ${amount} units obtained`;
     const rarityEl=document.getElementById('grRarity'); rarityEl.textContent=ore.rarityLabel; rarityEl.style.color=ore.color; rarityEl.style.border=`1px solid ${ore.color}`; rarityEl.style.background='rgba(0,0,0,0.4)';
     const costEl=document.getElementById('grCostPaid'); costEl.textContent=`${rolledCost.icon} −${rolledCost.amount} ${rolledCost.label} consumed`; costEl.style.color=rolledCost.color; costEl.style.borderColor=rolledCost.color+'55';
+    // Capacity degrade line
+    let grDegrade = document.getElementById('grDegrade');
+    if(!grDegrade){
+        grDegrade = document.createElement('div');
+        grDegrade.id = 'grDegrade';
+        grDegrade.style.cssText = 'font-size:11px;letter-spacing:1px;font-family:Courier New,monospace;padding:5px 12px;margin-bottom:14px;display:inline-block;border:1px solid;border-radius:2px;';
+        // Insert after grCostPaid
+        const costPaidEl = document.getElementById('grCostPaid');
+        costPaidEl.parentNode.insertBefore(grDegrade, costPaidEl.nextSibling);
+    }
+    if(degrade){
+        grDegrade.style.display='inline-block';
+        grDegrade.textContent=`${degrade.icon} −${degrade.amount} MAX ${degrade.label.toUpperCase()}`;
+        grDegrade.style.color='#ff6644';
+        grDegrade.style.borderColor='#ff664455';
+        grDegrade.style.background='rgba(80,20,0,0.4)';
+    } else {
+        grDegrade.style.display='none';
+    }
     const iconEl=document.getElementById('grIcon'); iconEl.style.animation='none'; void iconEl.offsetWidth; iconEl.style.animation='';
     document.getElementById('gachaReveal').style.display='flex';
 }
@@ -1537,11 +1595,34 @@ let miniMapVisible = true;
 
 function toggleMiniMap(){
     miniMapVisible = !miniMapVisible;
-    const el = document.getElementById('miniMap');
+    const el     = document.getElementById('miniMap');
     const toggle = document.getElementById('miniMapToggle');
-    el.classList.toggle('hidden', !miniMapVisible);
+    el.classList.toggle('collapsed', !miniMapVisible);
     toggle.textContent = miniMapVisible ? '✕' : '⬡';
 }
+
+function toggleTargetHUD(){
+    targetHudVisible = !targetHudVisible;
+    const hud = document.getElementById('targetHUD');
+    if(targetHudVisible) hud.classList.remove('hidden');
+    else hud.classList.add('hidden');
+}
+
+// Attach touch+mouse to minimap toggle — stopPropagation prevents joystick bleed
+(function(){
+    const btn = document.getElementById('miniMapToggle');
+    function handler(e){ e.stopPropagation(); e.preventDefault(); toggleMiniMap(); }
+    btn.addEventListener('touchend',  handler, {passive:false});
+    btn.addEventListener('mousedown', handler);
+})();
+
+// Attach touch+mouse to Target HUD toggle — whole header is the tap target
+(function(){
+    const header = document.querySelector('.thud-header');
+    function handler(e){ e.stopPropagation(); e.preventDefault(); toggleTargetHUD(); }
+    header.addEventListener('touchend',  handler, {passive:false});
+    header.addEventListener('mousedown', handler);
+})();
 
 function drawMiniMap(){
     // Sync canvas pixel buffer to its current CSS display size (handles all breakpoints)
