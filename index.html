@@ -17,17 +17,7 @@ body{
 canvas{ display:block; }
 
 /* =====================================================
-   BREAKPOINT PHILOSOPHY
-   pc          : min-width 900px (default – original layout)
-   landscape   : max-width 899px + landscape  (tablet/phone landscape)
-   portrait    : max-width 599px + portrait   (phone portrait)
-   ===================================================== */
-
-/* =====================================================
    TOP-LEFT CONTROLS LEGEND  (.ui)
-   PC : absolute top-left, full legend visible
-   Landscape: smaller font, compact
-   Portrait : collapsed to tiny pill, tap to expand
    ===================================================== */
 .ui{
     position:absolute; top:10px; left:10px;
@@ -36,7 +26,6 @@ canvas{ display:block; }
     line-height:1.5; z-index:2; font-size:12px;
     transition:all .2s;
 }
-/* Portrait: hide full legend, show a tiny "?" toggle */
 .ui-toggle{
     display:none; position:absolute; top:8px; left:8px;
     width:32px; height:32px; border-radius:50%;
@@ -48,10 +37,7 @@ canvas{ display:block; }
 .ui-full{ display:block; }
 
 /* =====================================================
-   TOP-RIGHT HUD  (bars + credits)
-   PC : 200px wide, stacked at top-right
-   Landscape: stays top-right but slightly narrower
-   Portrait : thin horizontal bar across the top
+   TOP-RIGHT HUD
    ===================================================== */
 .hud{
     position:absolute; top:10px; right:10px;
@@ -167,8 +153,7 @@ canvas{ display:block; }
 .notification{ position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#222; border:2px solid #00ff00; color:#00ff00; padding:20px 40px; font-size:16px; font-weight:bold; z-index:20; display:none; }
 
 /* =====================================================
-   ACTION BUTTONS  (#actionButtons)
-   PC : column, right side, bottom:20px right:14px
+   ACTION BUTTONS
    ===================================================== */
 #actionButtons{
     position:absolute; bottom:20px; right:14px;
@@ -194,16 +179,58 @@ canvas{ display:block; }
 #btnMine.unavailable{ opacity:0.3; pointer-events:none; }
 
 /* =====================================================
-   TARGET HUD
-   PC : right side, bottom:180px, 230px wide
+   TARGET HUD  — panel + icon states
    ===================================================== */
 #targetHUD{
     position:absolute; bottom:180px; right:14px; width:230px;
     background:rgba(4,8,20,0.88); border:1px solid rgba(0,180,255,0.35);
     box-shadow:0 0 18px rgba(0,120,255,0.15),inset 0 0 30px rgba(0,0,0,0.5);
-    z-index:5; overflow:hidden; font-family:'Courier New',monospace; transition:opacity 0.3s;
+    z-index:5; overflow:hidden; font-family:'Courier New',monospace;
+    /* Animation base */
+    transform-origin: right bottom;
+    transition: opacity 0.28s ease, transform 0.28s ease, width 0.28s ease, height 0.28s ease, border-radius 0.28s ease;
+    opacity:1; transform:scale(1);
 }
-#targetHUD.hidden{ opacity:0; pointer-events:none; }
+/* Collapsed → icon pill */
+#targetHUD.hud-icon-mode{
+    width:44px; height:44px; border-radius:50%;
+    overflow:hidden;
+    background:rgba(4,8,20,0.9);
+    border:2px solid rgba(0,180,255,0.7);
+    box-shadow:0 0 10px rgba(0,150,255,0.4);
+    cursor:pointer;
+    bottom:180px; right:14px;
+}
+#targetHUD.hud-icon-mode .thud-header,
+#targetHUD.hud-icon-mode #planetPortraitWrap,
+#targetHUD.hud-icon-mode .thud-body{ display:none; }
+#targetHUD.hud-icon-mode .thud-icon-label{ display:flex; }
+/* Opening animation */
+#targetHUD.hud-opening{
+    animation: hudOpen 0.28s ease forwards;
+}
+/* Closing animation */
+#targetHUD.hud-closing{
+    animation: hudClose 0.28s ease forwards;
+}
+@keyframes hudOpen{
+    from{ opacity:0; transform:scale(0.6) translateY(10px); }
+    to{   opacity:1; transform:scale(1)   translateY(0);    }
+}
+@keyframes hudClose{
+    from{ opacity:1; transform:scale(1)   translateY(0);    }
+    to{   opacity:0; transform:scale(0.6) translateY(10px); }
+}
+/* The icon label shown inside the pill */
+.thud-icon-label{
+    display:none;
+    width:100%; height:100%;
+    align-items:center; justify-content:center;
+    font-size:20px; color:rgba(0,200,255,0.9);
+    pointer-events:none;
+}
+
+/* Original interior */
 .thud-header{ background:rgba(0,100,200,0.2); border-bottom:1px solid rgba(0,180,255,0.25); padding:6px 10px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
 .thud-title{ color:#4af; font-size:10px; letter-spacing:2px; text-transform:uppercase; font-weight:bold; }
 .thud-toggle-hint{ color:rgba(100,160,255,0.5); font-size:9px; letter-spacing:1px; padding:6px 8px; margin:-6px -10px; cursor:pointer; user-select:none; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
@@ -227,28 +254,8 @@ canvas{ display:block; }
 #targetHUD::after{ content:''; position:absolute; inset:0; background:repeating-linear-gradient(0deg,rgba(0,0,0,0) 0px,rgba(0,0,0,0) 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px); pointer-events:none; z-index:10; }
 
 /* =====================================================
-   JOYSTICK
-   PC/Landscape: bottom-left
+   MINI-MAP — panel + icon states
    ===================================================== */
-#joystickBase{
-    position:absolute; bottom:80px; left:80px;
-    width:120px; height:120px; border-radius:50%;
-    border:2px solid rgba(255,255,255,0.3);
-    background:rgba(255,255,255,0.05); touch-action:none;
-}
-#joystickStick{
-    position:absolute; width:50px; height:50px; border-radius:50%;
-    background:rgba(0,150,255,0.6); left:50%; top:50%;
-    transform:translate(-50%,-50%);
-}
-
-/* HIT FLASH */
-#hitFlash{ position:fixed; inset:0; background:rgba(255,30,30,0); pointer-events:none; z-index:99; transition:background 0.08s; }
-
-/* PC default: right side, above the target HUD.
-   targetHUD is bottom:180px, its rendered height is ~268px (header 30 + portrait 100 + body ~138).
-   So minimap bottom = 180 + 268 + 6px gap = 454px.
-   Width matches targetHUD width (230px). */
 #miniMap{
     position:absolute;
     bottom:454px; right:14px;
@@ -258,11 +265,50 @@ canvas{ display:block; }
     box-shadow:0 0 14px rgba(0,100,255,0.15),inset 0 0 20px rgba(0,0,0,0.6);
     z-index:5; overflow:hidden; border-radius:4px;
     font-family:'Courier New',monospace;
+    /* Animation base */
+    transform-origin: right bottom;
+    transition: opacity 0.28s ease, transform 0.28s ease, width 0.28s ease, height 0.28s ease, border-radius 0.28s ease;
+    opacity:1; transform:scale(1);
 }
+/* Collapsed → icon pill */
+#miniMap.map-icon-mode{
+    width:44px; height:44px; border-radius:50%;
+    overflow:hidden;
+    background:rgba(0,5,15,0.9);
+    border:2px solid rgba(0,180,255,0.7);
+    box-shadow:0 0 10px rgba(0,130,255,0.4);
+    cursor:pointer;
+    /* Position will be set dynamically based on targetHUD state */
+}
+#miniMap.map-icon-mode #miniMapCanvas,
+#miniMap.map-icon-mode #miniMapLabel{ display:none; }
+#miniMap.map-icon-mode .map-icon-label{ display:flex; }
+#miniMap.map-icon-mode #miniMapToggle{ display:none; }
+/* Opening animation */
+#miniMap.map-opening{
+    animation: mapOpen 0.28s ease forwards;
+}
+/* Closing animation */
+#miniMap.map-closing{
+    animation: mapClose 0.28s ease forwards;
+}
+@keyframes mapOpen{
+    from{ opacity:0; transform:scale(0.6) translateY(10px); }
+    to{   opacity:1; transform:scale(1)   translateY(0);    }
+}
+@keyframes mapClose{
+    from{ opacity:1; transform:scale(1)   translateY(0);    }
+    to{   opacity:0; transform:scale(0.6) translateY(10px); }
+}
+.map-icon-label{
+    display:none;
+    width:100%; height:100%;
+    align-items:center; justify-content:center;
+    font-size:18px; color:rgba(0,200,255,0.9);
+    pointer-events:none;
+}
+
 #miniMap.hidden{ display:none; }
-/* collapsed: canvas hidden, only the label+toggle strip remains visible as a thin bar */
-#miniMap.collapsed{ height:20px; overflow:hidden; }
-#miniMap.collapsed #miniMapCanvas{ display:none; }
 #miniMapCanvas{ display:block; width:230px; height:150px; }
 #miniMapLabel{
     position:absolute; top:3px; left:5px;
@@ -279,18 +325,36 @@ canvas{ display:block; }
     z-index:2;
 }
 
-/* Landscape: targetHUD is top:10px right:170px width:190px, height ~220px.
-   Minimap sits below targetHUD: top = 10 + 220 + 6 = 236px */
+/* =====================================================
+   JOYSTICK
+   ===================================================== */
+#joystickBase{
+    position:absolute; bottom:80px; left:80px;
+    width:120px; height:120px; border-radius:50%;
+    border:2px solid rgba(255,255,255,0.3);
+    background:rgba(255,255,255,0.05); touch-action:none;
+}
+#joystickStick{
+    position:absolute; width:50px; height:50px; border-radius:50%;
+    background:rgba(0,150,255,0.6); left:50%; top:50%;
+    transform:translate(-50%,-50%);
+}
+
+/* HIT FLASH */
+#hitFlash{ position:fixed; inset:0; background:rgba(255,30,30,0); pointer-events:none; z-index:99; transition:background 0.08s; }
+
+/* =====================================================
+   MINI-MAP position (landscape & portrait)
+   ===================================================== */
 @media (max-width:899px) and (orientation:landscape){
     #miniMap{
         top:236px; right:170px;
         bottom:auto; width:190px; height:110px;
     }
     #miniMapCanvas{ width:190px; height:110px; }
+    #miniMap.map-icon-mode{ top:236px; right:170px; bottom:auto; width:44px; height:44px; }
 }
 
-/* Portrait: targetHUD is top:36px right:0 width:170px, height ~230px.
-   Minimap sits directly BELOW: top = 36 + 230 = 266px. No top border = flush panel look. */
 @media (max-width:599px) and (orientation:portrait){
     #miniMap{
         top:266px; right:0;
@@ -300,6 +364,7 @@ canvas{ display:block; }
         border-radius:0 0 0 4px;
     }
     #miniMapCanvas{ width:170px; height:130px; }
+    #miniMap.map-icon-mode{ top:266px; right:0; bottom:auto; width:44px; height:44px; border-radius:50%; }
 }
 
 /* =====================================================
@@ -399,150 +464,75 @@ canvas{ display:block; }
 #closeInventory:hover{ background:rgba(0,120,255,0.2); color:#4af; border-color:#4af; }
 
 /* =====================================================
-   ▼▼▼  MOBILE LANDSCAPE  ▼▼▼
-   max-width:899px AND landscape orientation
-   Adjustments: tighter widths, repositioned target HUD
+   MOBILE LANDSCAPE
    ===================================================== */
 @media (max-width:899px) and (orientation:landscape){
-    /* Shrink HUD bars */
     .hud{ width:160px; font-size:10px; }
     .bar{ height:8px; margin-bottom:5px; }
     #credits{ top:115px; font-size:12px; padding:5px 9px; }
-
-    /* Controls legend: compact */
     .ui{ font-size:10px; padding:5px 8px; line-height:1.4; max-width:140px; }
-
-    /* Joystick: move slightly inward */
     #joystickBase{ width:100px; height:100px; bottom:60px; left:60px; }
     #joystickStick{ width:40px; height:40px; }
-
-    /* Action buttons: smaller */
     .action-btn{ width:64px; height:64px; font-size:9px; }
     .action-btn .btn-icon{ font-size:18px; }
     #actionButtons{ bottom:16px; right:10px; gap:8px; }
-
-    /* Target HUD: move to TOP-RIGHT to avoid button collision */
-    #targetHUD{
-        top:10px; right:170px;
-        bottom:auto; width:190px;
-    }
+    #targetHUD{ top:10px; right:170px; bottom:auto; width:190px; }
     #planetPortraitWrap{ height:72px; }
-
-    /* Proximity alert: higher up */
     #proximityAlert{ bottom:160px; font-size:13px; }
-
-    /* Overlay containers: use more height on landscape */
-    #shopContainer, #oreShopContainer, #inventoryContainer{
-        max-height:90vh; padding:16px;
-    }
+    #shopContainer, #oreShopContainer, #inventoryContainer{ max-height:90vh; padding:16px; }
     #shopHeader{ font-size:18px; }
     .shopItem{ padding:10px; }
     .itemName{ font-size:13px; }
     .gacha-grid{ grid-template-columns:1fr 1fr; }
+    /* targetHUD icon mode on landscape */
+    #targetHUD.hud-icon-mode{ top:10px; right:170px; bottom:auto; width:44px; height:44px; }
 }
 
 /* =====================================================
-   ▼▼▼  MOBILE PORTRAIT  ▼▼▼
-   max-width:599px AND portrait orientation
-   Full layout rework for narrow screens
+   MOBILE PORTRAIT
    ===================================================== */
 @media (max-width:599px) and (orientation:portrait){
-
-    /* -- Controls legend: hidden by default, toggle button shows -- */
     .ui{ display:none; }
     .ui-full{ display:none; }
     .ui-toggle{ display:flex; }
-
-    /* -- HUD: horizontal strip along very top -- */
-    .hud{
-        top:0; right:0; left:0; width:100%;
-        display:flex; flex-direction:row;
-        align-items:center; gap:0;
-        background:rgba(0,0,0,0.75);
-        border-bottom:1px solid rgba(255,255,255,0.15);
-        padding:4px 8px 4px 44px; /* left pad for toggle btn */
-        text-align:left; font-size:10px;
-        z-index:4;
-    }
-    /* Each stat group: label + bar side by side */
+    .hud{ top:0; right:0; left:0; width:100%; display:flex; flex-direction:row; align-items:center; gap:0; background:rgba(0,0,0,0.75); border-bottom:1px solid rgba(255,255,255,0.15); padding:4px 8px 4px 44px; text-align:left; font-size:10px; z-index:4; }
     .hud-stat{ display:flex; flex-direction:column; flex:1; padding:0 4px; }
     .hud-label{ font-size:8px; color:rgba(255,255,255,0.5); letter-spacing:1px; margin-bottom:2px; }
     .bar{ width:100%; height:6px; margin-bottom:0; }
-
-    /* -- Credits: top-right corner, compact -- */
-    #credits{
-        top:0; right:0;
-        font-size:11px; padding:4px 8px;
-        background:rgba(0,0,0,0.75);
-        border:none; border-left:1px solid rgba(255,215,0,0.25);
-        border-bottom:1px solid rgba(255,215,0,0.2);
-        z-index:5; line-height:32px; /* match HUD height ~32px */
-    }
-
-    /* -- Joystick: bottom-left, smaller -- */
+    #credits{ top:0; right:0; font-size:11px; padding:4px 8px; background:rgba(0,0,0,0.75); border:none; border-left:1px solid rgba(255,215,0,0.25); border-bottom:1px solid rgba(255,215,0,0.2); z-index:5; line-height:32px; }
     #joystickBase{ width:100px; height:100px; bottom:20px; left:20px; }
     #joystickStick{ width:38px; height:38px; }
-
-    /* -- Action buttons: row along bottom-right -- */
-    #actionButtons{
-        flex-direction:row; bottom:20px; right:12px; gap:8px;
-    }
+    #actionButtons{ flex-direction:row; bottom:20px; right:12px; gap:8px; }
     .action-btn{ width:68px; height:68px; font-size:9px; }
     .action-btn .btn-icon{ font-size:18px; }
-
-    /* -- Target HUD: top-right, BELOW the HUD bar, compact -- */
-    #targetHUD{
-        top:36px; right:0;
-        bottom:auto; width:170px;
-        border-top:none;
-    }
+    #targetHUD{ top:36px; right:0; bottom:auto; width:170px; border-top:none; }
     #planetPortraitWrap{ height:68px; }
     .thud-body{ padding:6px 8px; }
     .thud-row{ font-size:9px; margin-bottom:3px; }
     .thud-label{ font-size:8px; }
-
-    /* -- Proximity alert: above action buttons -- */
     #proximityAlert{ bottom:100px; font-size:12px; padding:6px 12px; }
     #proximityAlert.dual .prox-panel{ font-size:11px; padding:6px 10px; }
-
-    /* -- Overlays: use full screen on small portrait -- */
-    #shopContainer,
-    #oreShopContainer,
-    #inventoryContainer{
-        width:100%; max-width:100%;
-        max-height:92vh; padding:14px;
-        border-radius:0; border-left:none; border-right:none;
-        margin:0;
-    }
+    #shopContainer, #oreShopContainer, #inventoryContainer{ width:100%; max-width:100%; max-height:92vh; padding:14px; border-radius:0; border-left:none; border-right:none; margin:0; }
     #shopHeader{ font-size:17px; letter-spacing:1px; }
     #shopSubtitle{ font-size:11px; }
     .shopItem{ flex-direction:column; align-items:flex-start; gap:8px; }
     .itemPrice{ margin-right:0; }
     .buyButton{ width:100%; }
     .shop-tab{ font-size:10px; padding:7px 0; }
-
-    /* Gacha grid: single column on very narrow portrait */
     .gacha-grid{ grid-template-columns:1fr; }
-
-    /* Upgrade cards compact */
     .upgrade-stat-row{ flex-wrap:wrap; gap:4px; }
-
-    /* Inv grid: 2 col */
     #invGrid{ grid-template-columns:repeat(2,1fr); }
-
-    /* Gacha reveal compact */
     #gachaReveal .gr-box{ padding:24px 20px; min-width:260px; }
     #gachaReveal .gr-icon{ font-size:44px; }
     #gachaReveal .gr-ore-name{ font-size:18px; }
+    /* targetHUD icon mode on portrait */
+    #targetHUD.hud-icon-mode{ top:36px; right:0; bottom:auto; width:44px; height:44px; border-radius:50%; border-top:none; }
 }
 
 /* =====================================================
-   PORTRAIT HUD — restructured inner layout
-   The JS-generated HUD divs need wrappers. We inject
-   .hud-stat wrapper via JS on portrait detection.
-   On PC/landscape the .hud-stat wrapper is transparent.
+   PORTRAIT HUD
    ===================================================== */
-.hud-stat{ display:contents; } /* neutral on non-portrait */
+.hud-stat{ display:contents; }
 @media (max-width:599px) and (orientation:portrait){
     .hud-stat{ display:flex; flex-direction:column; flex:1; padding:0 3px; }
     .hud-stat .hud-label{ display:block; }
@@ -564,8 +554,9 @@ S = Brake<br>
 LSHIFT = Boost<br>
 <span style="color:#FFD700;">P = Dock  |  O = Mine</span><br>
 <span style="color:#4af;">G = Target HUD</span><br>
+<span style="color:#88aaff;">Q = Mini-Map</span><br>
 <span style="color:#ff9900;">I = Inventory</span><br>
-<span style="color:#88ccff;">M = Mini-Map</span><br><br>
+<span style="color:#88ccff;">M = Mini-Map (alt)</span><br><br>
 <span style="color:#888;font-size:10px;">Tap toggle to hide</span>
 </div>
 
@@ -599,7 +590,8 @@ LSHIFT = Boost<br>
 <div id="miniMap">
     <canvas id="miniMapCanvas" width="230" height="150"></canvas>
     <span id="miniMapLabel">◈ NAV</span>
-    <span id="miniMapToggle">✕</span>
+    <span id="miniMapToggle" title="Toggle Mini-Map [Q/M]">✕</span>
+    <div class="map-icon-label">🗺</div>
 </div>
 
 <div id="actionButtons">
@@ -646,6 +638,8 @@ LSHIFT = Boost<br>
         <div class="thud-status" id="dbgStatus">SCANNING...</div>
         <div class="thud-dock-prompt" id="thudDockPrompt">▶ PRESS P TO DOCK ◀</div>
     </div>
+    <!-- Icon shown when collapsed to pill -->
+    <div class="thud-icon-label">🎯</div>
 </div>
 
 <!-- SHOP OVERLAY -->
@@ -763,12 +757,96 @@ window.addEventListener("resize", ()=>{
 // =====================================================
 let shopOpen = false;
 let credits = 1000;
-let targetHudVisible = true;
+
+// =====================================================
+// PANEL TOGGLE STATE — icon mode tracking
+// =====================================================
+let targetHudVisible = true;   // panel fully open
+let targetHudIconMode = false; // collapsed to icon pill
+
+let miniMapVisible = true;     // panel fully open
+let miniMapIconMode = false;   // collapsed to icon pill
+
+// =====================================================
+// PANEL TOGGLE — TARGET HUD  (key: G)
+// =====================================================
 function toggleTargetHUD(){
-    targetHudVisible = !targetHudVisible;
-    const hud = document.getElementById('targetHUD');
-    if(targetHudVisible) hud.classList.remove('hidden');
-    else hud.classList.add('hidden');
+    const el = document.getElementById('targetHUD');
+    if(targetHudIconMode){
+        // Icon → open panel
+        el.classList.remove('map-icon-mode','hud-icon-mode');
+        el.classList.add('hud-opening');
+        // Restore pointer events during open anim then settle
+        el.style.pointerEvents = 'none';
+        setTimeout(()=>{
+            el.classList.remove('hud-opening');
+            el.style.pointerEvents = '';
+        }, 280);
+        targetHudIconMode = false;
+        targetHudVisible  = true;
+    } else {
+        // Open panel → icon
+        el.classList.add('hud-closing');
+        el.style.pointerEvents = 'none';
+        setTimeout(()=>{
+            el.classList.remove('hud-closing');
+            el.classList.add('hud-icon-mode');
+            el.style.pointerEvents = '';
+        }, 280);
+        targetHudIconMode = true;
+        targetHudVisible  = false;
+    }
+    syncMiniMapPosition();
+}
+
+// =====================================================
+// PANEL TOGGLE — MINI-MAP  (keys: Q / M)
+// =====================================================
+function toggleMiniMap(){
+    const el = document.getElementById('miniMap');
+    if(miniMapIconMode){
+        // Icon → open panel
+        el.classList.remove('map-icon-mode');
+        el.classList.add('map-opening');
+        el.style.pointerEvents = 'none';
+        setTimeout(()=>{
+            el.classList.remove('map-opening');
+            el.style.pointerEvents = '';
+            // restore normal canvas display
+            document.getElementById('miniMapCanvas').style.display = 'block';
+            document.getElementById('miniMapLabel').style.display = '';
+        }, 280);
+        miniMapIconMode = false;
+        miniMapVisible  = true;
+    } else {
+        // Open panel → icon
+        el.classList.add('map-closing');
+        el.style.pointerEvents = 'none';
+        setTimeout(()=>{
+            el.classList.remove('map-closing');
+            el.classList.add('map-icon-mode');
+            el.style.pointerEvents = '';
+        }, 280);
+        miniMapIconMode = false; // set after anim to avoid flicker
+        setTimeout(()=>{ miniMapIconMode = true; }, 300);
+        miniMapVisible  = false;
+    }
+}
+
+// When targetHUD collapses to icon, minimap needs to reposition
+// (on PC: minimap sits ABOVE targetHUD; if targetHUD shrinks, minimap slides down)
+function syncMiniMapPosition(){
+    // Only relevant on PC layout (>899px)
+    const isPC = window.innerWidth > 899;
+    if(!isPC) return;
+    const mmEl = document.getElementById('miniMap');
+    if(targetHudIconMode){
+        // targetHUD is now 44px icon. minimap bottom = 180(icon bottom) + 44 + 6 = 230px
+        mmEl.style.bottom = '230px';
+    } else {
+        // targetHUD is full panel (~268px). minimap bottom = 180 + 268 + 6 = 454px
+        mmEl.style.bottom = '454px';
+    }
 }
 
 // =====================================================
@@ -854,13 +932,44 @@ document.addEventListener("keydown", (e)=>{
         if(nearAsteroid) openAsteroidShop(nearAsteroid);
     }
     if(e.key.toLowerCase() === 'g') toggleTargetHUD();
+    if(e.key.toLowerCase() === 'q') toggleMiniMap();
+    if(e.key.toLowerCase() === 'm') toggleMiniMap(); // keep M as alias
     if(e.key.toLowerCase() === 'i'){
         if(inventoryOpen)  closeInventory();
         else if(!shopOpen) openInventory();
     }
-    if(e.key.toLowerCase() === 'm') toggleMiniMap();
 });
 document.addEventListener("keyup", (e)=>{ keys[e.key.toLowerCase()] = false; });
+
+// =====================================================
+// PANEL CLICK HANDLERS — icon pill tap-to-reopen
+// =====================================================
+document.getElementById('targetHUD').addEventListener('click', function(e){
+    if(targetHudIconMode) toggleTargetHUD();
+});
+document.getElementById('miniMap').addEventListener('click', function(e){
+    // Only reopen when in icon mode (ignore normal map clicks)
+    if(miniMapIconMode) toggleMiniMap();
+});
+
+// Minimap close button (the ✕ in the corner when panel is open)
+(function(){
+    const btn = document.getElementById('miniMapToggle');
+    function handler(e){ e.stopPropagation(); e.preventDefault(); toggleMiniMap(); }
+    btn.addEventListener('touchend',  handler, {passive:false});
+    btn.addEventListener('mousedown', handler);
+})();
+
+// Target HUD header click (whole header = toggle when panel is open)
+(function(){
+    const header = document.querySelector('.thud-header');
+    function handler(e){
+        // Only close if NOT already in icon mode (icon mode handled by panel click above)
+        if(!targetHudIconMode){ e.stopPropagation(); e.preventDefault(); toggleTargetHUD(); }
+    }
+    header.addEventListener('touchend',  handler, {passive:false});
+    header.addEventListener('mousedown', handler);
+})();
 
 // =====================================================
 // ACTION BUTTONS
@@ -1079,41 +1188,31 @@ const RESOURCE_COST_TIERS={common:{fuel:[10,20],energy:[12,22],armor:[8,15],hp:[
 const RESOURCE_POOL=[{key:'fuel',icon:'⛽',label:'FUEL',color:'#ff8800'},{key:'energy',icon:'⚡',label:'ENERGY',color:'#00ccff'},{key:'armor',icon:'🛡',label:'ARMOR',color:'#aaaaaa'},{key:'hp',icon:'❤',label:'HULL HP',color:'#ff3333'}];
 function rollResourceCost(rarityKey){
     const tier = RESOURCE_COST_TIERS[rarityKey];
-    // For each resource, compute the cost range midpoint and check if player has enough
-    // We pick the resource the player has the most of (relative to its cost), ensuring they can always mine
     const candidates = [];
     for(const res of RESOURCE_POOL){
         const range  = tier[res.key];
         const minCost = range[0];
         const maxCost = range[1];
         const current = ship[res.key];
-        // Safety floor: hp must stay above 1
         const safeMax = res.key === 'hp' ? current - 1 : current;
         if(safeMax >= minCost){
-            // How much headroom does the player have above the minimum cost?
-            // Higher headroom = more abundant = preferred
             candidates.push({ ...res, minCost, maxCost, headroom: safeMax - minCost });
         }
     }
-    // If somehow nothing qualifies (extreme edge case), fall back to least-costly resource
     let chosen;
     if(candidates.length === 0){
-        // Player is very low on everything — pick the resource with the smallest minimum cost
         chosen = RESOURCE_POOL.reduce((best, res) => {
             const minCost = tier[res.key][0];
             const bestMinCost = tier[best.key][0];
             return minCost < bestMinCost ? res : best;
         });
         const range = tier[chosen.key];
-        const amount = range[0]; // use minimum possible cost
+        const amount = range[0];
         return { ...chosen, amount };
     }
-    // Sort by headroom descending — most abundant resource goes first
     candidates.sort((a, b) => b.headroom - a.headroom);
-    // Pick from top candidates (top half or at least 1) with weighted random favoring abundance
     const pool = candidates.slice(0, Math.max(1, Math.ceil(candidates.length / 2)));
     chosen = pool[Math.floor(Math.random() * pool.length)];
-    // Roll cost within the range the player can actually afford
     const safeMax = chosen.key === 'hp' ? ship[chosen.key] - 1 : ship[chosen.key];
     const rollMax = Math.min(chosen.maxCost, safeMax);
     const amount  = chosen.minCost + Math.floor(Math.random() * (rollMax - chosen.minCost + 1));
@@ -1172,30 +1271,26 @@ function updateOreShopResourceDisplay(){
     low('orsHP',ship.hp); low('orsArmor',ship.armor); low('orsFuel',ship.fuel); low('orsEnergy',ship.energy);
 }
 function closeOreShop(){ oreShopOpen=false; shopOpen=false; window._shopAsteroid=null; document.getElementById('oreShopOverlay').style.display='none'; }
+
 // =====================================================
 // CAPACITY DEGRADATION
 // =====================================================
-// maxKey → label/icon/color for display
 const DEGRADE_DEFS = [
     { maxKey:'maxHp',     statKey:'hp',     label:'Hull Integrity', icon:'❤',  color:'#ff4444', floor:20 },
     { maxKey:'maxArmor',  statKey:'armor',  label:'Armor Plating',  icon:'🛡', color:'#aaaaaa', floor:20 },
     { maxKey:'maxFuel',   statKey:'fuel',   label:'Fuel Tank',       icon:'⛽', color:'#ff8800', floor:20 },
     { maxKey:'maxEnergy', statKey:'energy', label:'Energy Cap',      icon:'⚡', color:'#00ccff', floor:20 },
 ];
-// degradeAmount range per pack difficulty
 const DEGRADE_AMOUNT = { common:{min:1,max:3}, uncommon:{min:2,max:5}, rare:{min:4,max:8}, epic:{min:6,max:12} };
 
 function rollCapacityDegrade(pack){
-    if(Math.random() > pack.degradeChance) return null; // no degrade this time
+    if(Math.random() > pack.degradeChance) return null;
     const range  = DEGRADE_AMOUNT[pack.costRarityKey];
     const amount = range.min + Math.floor(Math.random() * (range.max - range.min + 1));
-    // Pick a random stat whose max is still above floor + amount (so degrading is meaningful)
     const eligible = DEGRADE_DEFS.filter(d => ship[d.maxKey] - amount >= d.floor);
     if(!eligible.length) return null;
     const def    = eligible[Math.floor(Math.random() * eligible.length)];
-    // Apply degradation
     ship[def.maxKey] = Math.max(def.floor, ship[def.maxKey] - amount);
-    // Clamp current value if it now exceeds new max
     if(ship[def.statKey] > ship[def.maxKey]) ship[def.statKey] = ship[def.maxKey];
     return { ...def, amount };
 }
@@ -1210,7 +1305,6 @@ function buyGachaPack(packId){
     }
     ship[rolled.key]=Math.max(0,current-rolled.amount);
     if(rolled.key==='hp'||rolled.key==='armor'){ const flash=document.getElementById('hitFlash'); flash.style.background=rolled.key==='hp'?'rgba(255,30,30,0.35)':'rgba(180,180,180,0.25)'; setTimeout(()=>{flash.style.background='rgba(255,30,30,0)';},200); }
-    // Roll capacity degradation
     const degrade = rollCapacityDegrade(pack);
     updateHUD(); updateOreShopResourceDisplay();
     const {ore,amount}=rollGachaPack(pack);
@@ -1223,13 +1317,11 @@ function showGachaReveal(ore,amount,rolledCost,degrade){
     document.getElementById('grAmount').textContent=`× ${amount} units obtained`;
     const rarityEl=document.getElementById('grRarity'); rarityEl.textContent=ore.rarityLabel; rarityEl.style.color=ore.color; rarityEl.style.border=`1px solid ${ore.color}`; rarityEl.style.background='rgba(0,0,0,0.4)';
     const costEl=document.getElementById('grCostPaid'); costEl.textContent=`${rolledCost.icon} −${rolledCost.amount} ${rolledCost.label} consumed`; costEl.style.color=rolledCost.color; costEl.style.borderColor=rolledCost.color+'55';
-    // Capacity degrade line
     let grDegrade = document.getElementById('grDegrade');
     if(!grDegrade){
         grDegrade = document.createElement('div');
         grDegrade.id = 'grDegrade';
         grDegrade.style.cssText = 'font-size:11px;letter-spacing:1px;font-family:Courier New,monospace;padding:5px 12px;margin-bottom:14px;display:inline-block;border:1px solid;border-radius:2px;';
-        // Insert after grCostPaid
         const costPaidEl = document.getElementById('grCostPaid');
         costPaidEl.parentNode.insertBefore(grDegrade, costPaidEl.nextSibling);
     }
@@ -1549,14 +1641,14 @@ function drawAsteroidPortrait(asteroid){
 // TARGET HUD UPDATE
 // =====================================================
 function updateTargetHUD(){
+    if(targetHudIconMode) return; // panel is collapsed, skip content update
     const nearPlanet=getNearestScannablePlanet(),nearAsteroid=getNearestScannableAsteroid();
     let targetType=null;
     if(nearPlanet&&nearAsteroid){ const dp=getDistanceToPlanet(nearPlanet),da=getDistanceToAsteroid(nearAsteroid); targetType=dp<=da?'planet':'asteroid'; }
     else if(nearPlanet) targetType='planet';
     else if(nearAsteroid) targetType='asteroid';
     const hudEl=document.getElementById('targetHUD');
-    if(!targetType){ hudEl.classList.add('hidden'); drawPlanetPortrait(planets[lockedPlanetId]?planets[lockedPlanetId].theme:'blue'); return; }
-    if(targetHudVisible) hudEl.classList.remove('hidden');
+    if(!targetType){ drawPlanetPortrait(planets[lockedPlanetId]?planets[lockedPlanetId].theme:'blue'); return; }
     if(targetType==='asteroid'){
         const a=nearAsteroid,dist=getDistanceToAsteroid(a),threshold=a.radius+ASTEROID_DOCK_BUFFER,inDock=dist<threshold,pct=Math.max(0,Math.min(100,(1-dist/ASTEROID_SCAN_RADIUS)*100));
         drawAsteroidPortrait(a);
@@ -1566,7 +1658,7 @@ function updateTargetHUD(){
         document.getElementById('dbgDist').textContent=Math.round(dist)+' px';document.getElementById('dbgThreshold').textContent=Math.round(threshold)+' px';document.getElementById('dbgPct').textContent=Math.round(pct)+'%';
         const statusEl=document.getElementById('dbgStatus'),bar=document.getElementById('dbgBar'),dockPrompt=document.getElementById('thudDockPrompt');
         if(dist<a.radius){statusEl.textContent='⚠ COLLISION';statusEl.style.color='#ff4444';bar.style.background='#ff2222';dockPrompt.style.display='none';}
-        else if(inDock){statusEl.textContent='⛏ MINE ZONE';statusEl.style.color='#ffaa00';bar.style.background='#ff9900';dockPrompt.style.display='block';dockPrompt.textContent='▶ PRESS P TO MINE ◀';dockPrompt.style.color='#ffaa00';}
+        else if(inDock){statusEl.textContent='⛏ MINE ZONE';statusEl.style.color='#ffaa00';bar.style.background='#ff9900';dockPrompt.style.display='block';dockPrompt.textContent='▶ PRESS O TO MINE ◀';dockPrompt.style.color='#ffaa00';}
         else if(pct>40){statusEl.textContent='◎ APPROACHING';statusEl.style.color='#ffcc55';bar.style.background='#cc8800';dockPrompt.style.display='none';}
         else{statusEl.textContent='· · SCANNING · ·';statusEl.style.color='#886633';bar.style.background='#664400';dockPrompt.style.display='none';}
         bar.style.width=pct+'%';return;
@@ -1587,83 +1679,40 @@ function updateTargetHUD(){
 }
 
 // =====================================================
-// MINI-MAP
+// MINI-MAP DRAW
 // =====================================================
 const miniMapCanvas = document.getElementById('miniMapCanvas');
 const mctx = miniMapCanvas.getContext('2d');
-let miniMapVisible = true;
-
-function toggleMiniMap(){
-    miniMapVisible = !miniMapVisible;
-    const el     = document.getElementById('miniMap');
-    const toggle = document.getElementById('miniMapToggle');
-    el.classList.toggle('collapsed', !miniMapVisible);
-    toggle.textContent = miniMapVisible ? '✕' : '⬡';
-}
-
-function toggleTargetHUD(){
-    targetHudVisible = !targetHudVisible;
-    const hud = document.getElementById('targetHUD');
-    if(targetHudVisible) hud.classList.remove('hidden');
-    else hud.classList.add('hidden');
-}
-
-// Attach touch+mouse to minimap toggle — stopPropagation prevents joystick bleed
-(function(){
-    const btn = document.getElementById('miniMapToggle');
-    function handler(e){ e.stopPropagation(); e.preventDefault(); toggleMiniMap(); }
-    btn.addEventListener('touchend',  handler, {passive:false});
-    btn.addEventListener('mousedown', handler);
-})();
-
-// Attach touch+mouse to Target HUD toggle — whole header is the tap target
-(function(){
-    const header = document.querySelector('.thud-header');
-    function handler(e){ e.stopPropagation(); e.preventDefault(); toggleTargetHUD(); }
-    header.addEventListener('touchend',  handler, {passive:false});
-    header.addEventListener('mousedown', handler);
-})();
 
 function drawMiniMap(){
-    // Sync canvas pixel buffer to its current CSS display size (handles all breakpoints)
+    if(miniMapIconMode) return;
     const cssW = miniMapCanvas.offsetWidth;
     const cssH = miniMapCanvas.offsetHeight;
     if(miniMapCanvas.width !== cssW || miniMapCanvas.height !== cssH){
         miniMapCanvas.width  = cssW;
         miniMapCanvas.height = cssH;
     }
-
     const W = miniMapCanvas.width, H = miniMapCanvas.height;
     const cx = W / 2, cy = H / 2;
-
     mctx.clearRect(0, 0, W, H);
-
-    // Background grid
     mctx.strokeStyle = 'rgba(0,100,200,0.08)';
     mctx.lineWidth = 1;
     for(let gx = 0; gx < W; gx += 20){ mctx.beginPath(); mctx.moveTo(gx,0); mctx.lineTo(gx,H); mctx.stroke(); }
     for(let gy = 0; gy < H; gy += 20){ mctx.beginPath(); mctx.moveTo(0,gy); mctx.lineTo(W,gy); mctx.stroke(); }
-
-    // Scale: fit SCAN_RADIUS * 1.5 screen-space units into the shorter half-dimension
     const MINIMAP_RANGE = SCAN_RADIUS * 1.5;
     const SCALE = Math.min(cx, cy) / MINIMAP_RANGE;
-
-    // --- Draw planets ---
     for(const p of planets){
         const sdx = p.x - camera.x * p.depth;
         const sdy = p.y - camera.y * p.depth;
         const mx = cx + sdx * SCALE;
         const my = cy + sdy * SCALE;
-
         const isGreen = p.theme === 'green';
         const inDock  = isInDockZone(p);
         const pr      = Math.max(4, p.radius * SCALE);
         const offMap  = mx < 4 || mx > W-4 || my < 4 || my > H-4;
         const clampedMx = Math.max(6, Math.min(W-6, mx));
         const clampedMy = Math.max(6, Math.min(H-6, my));
-
         if(inDock){ mctx.shadowBlur = 10; mctx.shadowColor = isGreen ? '#00ff66' : '#00aaff'; }
-
         if(offMap){
             const ang = Math.atan2(sdy, sdx);
             mctx.save();
@@ -1682,18 +1731,14 @@ function drawMiniMap(){
             mctx.beginPath();
             mctx.arc(mx, my, pr, 0, Math.PI*2);
             mctx.fill();
-
             const dockR = (p.radius + DOCK_BUFFER) * SCALE;
-            mctx.strokeStyle = inDock
-                ? (isGreen ? 'rgba(0,255,100,0.6)' : 'rgba(0,200,255,0.6)')
-                : (isGreen ? 'rgba(0,180,60,0.2)'  : 'rgba(0,120,255,0.2)');
+            mctx.strokeStyle = inDock ? (isGreen ? 'rgba(0,255,100,0.6)' : 'rgba(0,200,255,0.6)') : (isGreen ? 'rgba(0,180,60,0.2)' : 'rgba(0,120,255,0.2)');
             mctx.lineWidth = 0.8;
             mctx.setLineDash([3,4]);
             mctx.beginPath();
             mctx.arc(mx, my, dockR, 0, Math.PI*2);
             mctx.stroke();
             mctx.setLineDash([]);
-
             mctx.fillStyle = isGreen ? 'rgba(100,255,160,0.75)' : 'rgba(120,200,255,0.75)';
             mctx.font = '7px Courier New';
             mctx.textAlign = 'center';
@@ -1702,27 +1747,22 @@ function drawMiniMap(){
         }
         mctx.shadowBlur = 0;
     }
-
-    // --- Draw asteroids ---
     for(const a of asteroids){
         const sdx = a.x - camera.x * a.depth;
         const sdy = a.y - camera.y * a.depth;
         const mx = cx + sdx * SCALE;
         const my = cy + sdy * SCALE;
         if(mx < -10 || mx > W+10 || my < -10 || my > H+10) continue;
-
         const inDock = isInAsteroidDockZone(a);
         const ar     = Math.max(2, a.radius * SCALE * 0.7);
         const tierColors = ['#b09070','#907055','#6e5038'];
         const col = tierColors[Math.max(0, ASTEROID_TIERS.indexOf(a.tier))];
-
         if(inDock){ mctx.shadowBlur = 8; mctx.shadowColor = '#ff9900'; }
         mctx.fillStyle = inDock ? '#ffaa33' : col;
         mctx.beginPath();
         mctx.arc(mx, my, ar, 0, Math.PI*2);
         mctx.fill();
         mctx.shadowBlur = 0;
-
         if(inDock){
             const dockR = (a.radius + ASTEROID_DOCK_BUFFER) * SCALE;
             mctx.strokeStyle = 'rgba(255,160,0,0.55)';
@@ -1734,8 +1774,6 @@ function drawMiniMap(){
             mctx.setLineDash([]);
         }
     }
-
-    // --- Player ship (always center) ---
     mctx.save();
     mctx.translate(cx, cy);
     mctx.rotate(ship.angle);
@@ -1748,16 +1786,12 @@ function drawMiniMap(){
     mctx.fill();
     mctx.shadowBlur = 0;
     mctx.restore();
-
-    // Scan radius ring
     const scanPR = SCAN_RADIUS * SCALE;
     mctx.strokeStyle = 'rgba(0,180,255,0.1)';
     mctx.lineWidth = 1;
     mctx.beginPath();
     mctx.arc(cx, cy, scanPR, 0, Math.PI*2);
     mctx.stroke();
-
-    // Inner border glow
     mctx.strokeStyle = 'rgba(0,120,255,0.2)';
     mctx.lineWidth = 1;
     mctx.strokeRect(0.5, 0.5, W-1, H-1);
