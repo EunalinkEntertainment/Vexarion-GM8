@@ -2,24 +2,57 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Vexarion Prototype - Shop System</title>
 
 <style>
+/* =====================================================
+   BASE / RESET
+   ===================================================== */
+*{ box-sizing:border-box; }
 body{
-    margin:0;
-    overflow:hidden;
-    background:black;
-    font-family:Arial, sans-serif;
+    margin:0; overflow:hidden;
+    background:black; font-family:Arial,sans-serif;
 }
 canvas{ display:block; }
 
+/* =====================================================
+   BREAKPOINT PHILOSOPHY
+   pc          : min-width 900px (default – original layout)
+   landscape   : max-width 899px + landscape  (tablet/phone landscape)
+   portrait    : max-width 599px + portrait   (phone portrait)
+   ===================================================== */
+
+/* =====================================================
+   TOP-LEFT CONTROLS LEGEND  (.ui)
+   PC : absolute top-left, full legend visible
+   Landscape: smaller font, compact
+   Portrait : collapsed to tiny pill, tap to expand
+   ===================================================== */
 .ui{
     position:absolute; top:10px; left:10px;
-    color:white; background:rgba(0,0,0,0.5);
-    padding:10px; border:1px solid rgba(255,255,255,0.2);
-    line-height:1.5; z-index:2;
+    color:white; background:rgba(0,0,0,0.55);
+    padding:8px 10px; border:1px solid rgba(255,255,255,0.2);
+    line-height:1.5; z-index:2; font-size:12px;
+    transition:all .2s;
 }
+/* Portrait: hide full legend, show a tiny "?" toggle */
+.ui-toggle{
+    display:none; position:absolute; top:8px; left:8px;
+    width:32px; height:32px; border-radius:50%;
+    background:rgba(0,0,0,0.7); border:1px solid rgba(255,255,255,0.3);
+    color:white; font-size:14px; font-weight:bold;
+    align-items:center; justify-content:center; z-index:3;
+    cursor:pointer; user-select:none;
+}
+.ui-full{ display:block; }
+
+/* =====================================================
+   TOP-RIGHT HUD  (bars + credits)
+   PC : 200px wide, stacked at top-right
+   Landscape: stays top-right but slightly narrower
+   Portrait : thin horizontal bar across the top
+   ===================================================== */
 .hud{
     position:absolute; top:10px; right:10px;
     width:200px; z-index:3; color:white; font-size:12px; text-align:right;
@@ -30,10 +63,10 @@ canvas{ display:block; }
     margin-bottom:8px; border:1px solid rgba(255,255,255,0.2);
 }
 .fill{ height:100%; width:100%; }
-#hp{ background:red; }
-#armor{ background:gray; }
-#fuel{ background:orange; }
-#energy{ background:cyan; }
+#hp    { background:red;    }
+#armor { background:gray;   }
+#fuel  { background:orange; }
+#energy{ background:cyan;   }
 
 #credits{
     position:absolute; top:140px; right:10px;
@@ -42,6 +75,10 @@ canvas{ display:block; }
     background:rgba(0,0,0,0.5); padding:8px 12px;
     border:1px solid rgba(255,215,0,0.3);
 }
+
+/* =====================================================
+   PROXIMITY ALERT
+   ===================================================== */
 #proximityAlert{
     position:absolute; bottom:200px; left:50%;
     transform:translateX(-50%);
@@ -52,7 +89,6 @@ canvas{ display:block; }
     animation:pulse 1s infinite;
     white-space:nowrap;
 }
-/* dual mode: two side-by-side panels */
 #proximityAlert.dual{
     display:flex; gap:16px; align-items:stretch;
     background:transparent; border:none; padding:0; animation:none;
@@ -62,14 +98,16 @@ canvas{ display:block; }
     font-weight:bold; text-align:center; line-height:1.6;
     animation:pulse 1s infinite;
 }
-.prox-panel.planet{ border-color:#00ff00; background:rgba(0,255,0,0.1); color:#00ff00; }
+.prox-panel.planet  { border-color:#00ff00; background:rgba(0,255,0,0.1);   color:#00ff00; }
 .prox-panel.asteroid{ border-color:#ffaa00; background:rgba(255,120,0,0.1); color:#ffaa00; }
 @keyframes pulse{
-    0%,100%{ opacity:0.6; transform:translateX(-50%) scale(1); }
-    50%{ opacity:1; transform:translateX(-50%) scale(1.05); }
+    0%,100%{ opacity:0.6; transform:translateX(-50%) scale(1);    }
+    50%     { opacity:1;   transform:translateX(-50%) scale(1.05); }
 }
 
-/* SHOP */
+/* =====================================================
+   SHOP OVERLAY
+   ===================================================== */
 #shopOverlay{
     position:fixed; inset:0;
     background:rgba(0,0,0,0.9); z-index:10;
@@ -110,39 +148,32 @@ canvas{ display:block; }
 .shop-tab:hover{ color:#aaa; background:#222; }
 .shop-tab.active{ color:#000; border-color:var(--tab-accent,#FFD700); background:var(--tab-accent,#FFD700); }
 
-/* SELL SECTION */
+/* SELL */
 #sellPanel{ display:none; }
-.sell-item{
-    background:#1a1200; border:2px solid #332200;
-    padding:14px 16px; margin-bottom:10px;
-    display:flex; justify-content:space-between; align-items:center;
-    transition:all 0.15s;
-}
+.sell-item{ background:#1a1200; border:2px solid #332200; padding:14px 16px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; transition:all 0.15s; }
 .sell-item:hover{ background:#221800; border-color:#cc7700; }
 .sell-item-info{ flex:1; }
 .sell-item-name{ color:white; font-size:15px; font-weight:bold; margin-bottom:4px; }
 .sell-item-qty{ color:#888; font-size:12px; }
 .sell-item-price{ color:#FFD700; font-size:16px; font-weight:bold; margin-right:14px; text-align:right; }
 .sell-item-price small{ display:block; color:#665500; font-size:10px; font-weight:normal; }
-.sellButton{
-    background:#2a1800; border:2px solid #cc7700; color:#cc7700;
-    padding:8px 14px; cursor:pointer; font-weight:bold; font-size:12px;
-    transition:all 0.15s; white-space:nowrap;
-}
+.sellButton{ background:#2a1800; border:2px solid #cc7700; color:#cc7700; padding:8px 14px; cursor:pointer; font-weight:bold; font-size:12px; transition:all 0.15s; white-space:nowrap; }
 .sellButton:hover{ background:#cc7700; color:#000; }
-.sell-all-btn{
-    width:100%; background:#1a0e00; border:2px solid #ff9900; color:#ff9900;
-    padding:11px; cursor:pointer; font-weight:bold; font-size:13px;
-    letter-spacing:1px; margin-top:6px; margin-bottom:2px; transition:all 0.2s;
-}
+.sell-all-btn{ width:100%; background:#1a0e00; border:2px solid #ff9900; color:#ff9900; padding:11px; cursor:pointer; font-weight:bold; font-size:13px; letter-spacing:1px; margin-top:6px; margin-bottom:2px; transition:all 0.2s; }
 .sell-all-btn:hover{ background:#ff9900; color:#000; }
 .sell-empty{ color:#443322; font-size:12px; text-align:center; padding:30px; letter-spacing:1px; }
 .sell-total-preview{ background:#110a00; border:1px solid #443300; padding:10px 14px; margin-bottom:14px; display:flex; justify-content:space-between; font-size:12px; color:#886633; }
 .sell-total-preview strong{ color:#FFD700; font-size:14px; }
 .notification{ position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#222; border:2px solid #00ff00; color:#00ff00; padding:20px 40px; font-size:16px; font-weight:bold; z-index:20; display:none; }
 
-/* ACTION BUTTONS */
-#actionButtons{ position:absolute; bottom:20px; right:14px; display:flex; flex-direction:column; gap:10px; z-index:6; }
+/* =====================================================
+   ACTION BUTTONS  (#actionButtons)
+   PC : column, right side, bottom:20px right:14px
+   ===================================================== */
+#actionButtons{
+    position:absolute; bottom:20px; right:14px;
+    display:flex; flex-direction:column; gap:10px; z-index:6;
+}
 .action-btn{
     width:80px; height:80px; border-radius:50%; border:none;
     font-family:'Courier New',monospace; font-size:10px; font-weight:bold;
@@ -162,7 +193,10 @@ canvas{ display:block; }
 #btnMine:active{ background:rgba(160,80,0,0.7); border-color:#ff9900; color:#fff; box-shadow:0 0 24px rgba(255,120,0,0.5); transform:scale(0.94); }
 #btnMine.unavailable{ opacity:0.3; pointer-events:none; }
 
-/* TARGET HUD */
+/* =====================================================
+   TARGET HUD
+   PC : right side, bottom:180px, 230px wide
+   ===================================================== */
 #targetHUD{
     position:absolute; bottom:180px; right:14px; width:230px;
     background:rgba(4,8,20,0.88); border:1px solid rgba(0,180,255,0.35);
@@ -192,73 +226,52 @@ canvas{ display:block; }
 @keyframes thudPulse{ 0%,100%{ opacity:0.5; } 50%{ opacity:1; } }
 #targetHUD::after{ content:''; position:absolute; inset:0; background:repeating-linear-gradient(0deg,rgba(0,0,0,0) 0px,rgba(0,0,0,0) 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px); pointer-events:none; z-index:10; }
 
-/* JOYSTICK */
-#joystickBase{ position:absolute; bottom:80px; left:80px; width:120px; height:120px; border-radius:50%; border:2px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.05); touch-action:none; }
-#joystickStick{ position:absolute; width:50px; height:50px; border-radius:50%; background:rgba(0,150,255,0.6); left:50%; top:50%; transform:translate(-50%,-50%); }
+/* =====================================================
+   JOYSTICK
+   PC/Landscape: bottom-left
+   ===================================================== */
+#joystickBase{
+    position:absolute; bottom:80px; left:80px;
+    width:120px; height:120px; border-radius:50%;
+    border:2px solid rgba(255,255,255,0.3);
+    background:rgba(255,255,255,0.05); touch-action:none;
+}
+#joystickStick{
+    position:absolute; width:50px; height:50px; border-radius:50%;
+    background:rgba(0,150,255,0.6); left:50%; top:50%;
+    transform:translate(-50%,-50%);
+}
 
 /* HIT FLASH */
 #hitFlash{ position:fixed; inset:0; background:rgba(255,30,30,0); pointer-events:none; z-index:99; transition:background 0.08s; }
 
-/* ORE SHOP OVERLAY */
-#oreShopOverlay{
-    position:fixed; inset:0;
-    background:rgba(0,0,0,0.92); z-index:10;
-    display:none; justify-content:center; align-items:center;
-}
-#oreShopContainer{
-    background:#110d00; border:3px solid #cc7700;
-    padding:28px; max-width:560px; width:92%;
-    max-height:85vh; overflow-y:auto;
-    box-shadow:0 0 40px rgba(200,100,0,0.35);
-    font-family:'Courier New',monospace;
-}
+/* =====================================================
+   ORE SHOP OVERLAY
+   ===================================================== */
+#oreShopOverlay{ position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:10; display:none; justify-content:center; align-items:center; }
+#oreShopContainer{ background:#110d00; border:3px solid #cc7700; padding:28px; max-width:560px; width:92%; max-height:85vh; overflow-y:auto; box-shadow:0 0 40px rgba(200,100,0,0.35); font-family:'Courier New',monospace; }
 #oreShopHeader{ text-align:center; color:#ff9900; font-size:22px; font-weight:bold; margin-bottom:4px; text-transform:uppercase; letter-spacing:3px; }
 #oreShopSubtitle{ text-align:center; color:#886633; font-size:11px; margin-bottom:18px; letter-spacing:1px; }
-.ore-credits-bar{
-    background:#1a1000; border:1px solid #443300; padding:10px 14px;
-    margin-bottom:18px; display:flex; justify-content:space-between; align-items:center;
-    font-size:12px;
-}
+.ore-credits-bar{ background:#1a1000; border:1px solid #443300; padding:10px 14px; margin-bottom:18px; display:flex; justify-content:space-between; align-items:center; font-size:12px; }
 .ore-credits-bar span{ color:#aaa; }
 .ore-credits-bar strong{ color:#FFD700; font-size:15px; }
-
-/* GACHA PACKS */
 .gacha-section-title{ color:#ff9900; font-size:13px; font-weight:bold; letter-spacing:2px; margin-bottom:12px; padding-bottom:5px; border-bottom:1px solid #332200; }
 .gacha-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px; }
-.gacha-card{
-    background:#1c1200; border:2px solid #553300;
-    padding:14px 12px; cursor:pointer; transition:all 0.15s;
-    position:relative; overflow:hidden;
-}
+.gacha-card{ background:#1c1200; border:2px solid #553300; padding:14px 12px; cursor:pointer; transition:all 0.15s; position:relative; overflow:hidden; }
 .gacha-card:hover{ border-color:#ff9900; background:#251800; transform:translateY(-2px); box-shadow:0 4px 16px rgba(255,120,0,0.2); }
 .gacha-card:active{ transform:scale(0.97); }
 .gacha-card .gc-icon{ font-size:28px; text-align:center; margin-bottom:8px; }
 .gacha-card .gc-name{ color:#ffcc66; font-size:13px; font-weight:bold; margin-bottom:4px; letter-spacing:1px; }
 .gacha-card .gc-desc{ color:#886644; font-size:10px; line-height:1.4; margin-bottom:10px; }
 .gacha-card .gc-pool{ color:#aa7733; font-size:10px; margin-bottom:8px; font-style:italic; }
-.gacha-card .gc-price{
-    background:#2a1800; border:1px solid #664400;
-    color:#FFD700; font-size:14px; font-weight:bold;
-    text-align:center; padding:6px;
-}
+.gacha-card .gc-price{ background:#2a1800; border:1px solid #664400; color:#FFD700; font-size:14px; font-weight:bold; text-align:center; padding:6px; }
 .gacha-card .gc-rarity-bar{ position:absolute; top:0; left:0; right:0; height:3px; }
 .rarity-common .gc-rarity-bar{ background:linear-gradient(90deg,#666,#999); }
 .rarity-uncommon .gc-rarity-bar{ background:linear-gradient(90deg,#226622,#44ff44); }
 .rarity-rare .gc-rarity-bar{ background:linear-gradient(90deg,#002288,#4488ff); }
 .rarity-epic .gc-rarity-bar{ background:linear-gradient(90deg,#440066,#cc44ff); }
-
-/* GACHA REVEAL */
-#gachaReveal{
-    position:fixed; inset:0; background:rgba(0,0,0,0.95);
-    z-index:20; display:none; justify-content:center; align-items:center;
-    flex-direction:column;
-}
-#gachaReveal .gr-box{
-    background:#1a0e00; border:3px solid #cc7700;
-    padding:40px 50px; text-align:center; min-width:300px;
-    box-shadow:0 0 60px rgba(255,120,0,0.4);
-    animation:revealPop 0.35s cubic-bezier(0.34,1.56,0.64,1);
-}
+#gachaReveal{ position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:20; display:none; justify-content:center; align-items:center; flex-direction:column; }
+#gachaReveal .gr-box{ background:#1a0e00; border:3px solid #cc7700; padding:40px 50px; text-align:center; min-width:300px; box-shadow:0 0 60px rgba(255,120,0,0.4); animation:revealPop 0.35s cubic-bezier(0.34,1.56,0.64,1); }
 @keyframes revealPop{ from{ transform:scale(0.5); opacity:0; } to{ transform:scale(1); opacity:1; } }
 #gachaReveal .gr-label{ color:#886633; font-size:11px; letter-spacing:3px; margin-bottom:10px; font-family:'Courier New',monospace; }
 #gachaReveal .gr-icon{ font-size:64px; margin:10px 0; animation:oreSpin 0.6s ease-out; }
@@ -266,165 +279,256 @@ canvas{ display:block; }
 #gachaReveal .gr-ore-name{ font-size:24px; font-weight:bold; font-family:'Courier New',monospace; margin-bottom:6px; }
 #gachaReveal .gr-amount{ color:#aaa; font-size:14px; font-family:'Courier New',monospace; margin-bottom:6px; }
 #gachaReveal .gr-rarity{ font-size:11px; letter-spacing:2px; font-family:'Courier New',monospace; padding:3px 10px; display:inline-block; margin-bottom:20px; }
-#gachaReveal .gr-close{
-    background:#2a1800; border:2px solid #ff9900; color:#ff9900;
-    padding:10px 30px; cursor:pointer; font-family:'Courier New',monospace;
-    font-size:13px; font-weight:bold; letter-spacing:2px; transition:all 0.15s;
-}
+#gachaReveal .gr-close{ background:#2a1800; border:2px solid #ff9900; color:#ff9900; padding:10px 30px; cursor:pointer; font-family:'Courier New',monospace; font-size:13px; font-weight:bold; letter-spacing:2px; transition:all 0.15s; }
 #gachaReveal .gr-close:hover{ background:#ff9900; color:#000; }
-
-/* CLOSE ORE SHOP */
-#closeOreShop{
-    width:100%; background:#1a0e00; border:2px solid #cc3300;
-    color:#cc3300; padding:12px; cursor:pointer;
-    font-family:'Courier New',monospace; font-size:13px; font-weight:bold;
-    letter-spacing:2px; margin-top:4px; transition:all 0.2s;
-}
+#closeOreShop{ width:100%; background:#1a0e00; border:2px solid #cc3300; color:#cc3300; padding:12px; cursor:pointer; font-family:'Courier New',monospace; font-size:13px; font-weight:bold; letter-spacing:2px; margin-top:4px; transition:all 0.2s; }
 #closeOreShop:hover{ background:#cc3300; color:#fff; }
-
-/* ORE SHOP RESOURCE STATUS */
-.ore-resource-status{
-    background:#1a1000; border:1px solid #443300;
-    padding:10px 14px; margin-bottom:18px;
-}
+.ore-resource-status{ background:#1a1000; border:1px solid #443300; padding:10px 14px; margin-bottom:18px; }
 .ors-label{ color:#664400; font-size:10px; letter-spacing:2px; margin-bottom:8px; }
 .ors-stats{ display:flex; justify-content:space-between; gap:6px; }
-.ors-stat{
-    flex:1; background:#110800; border:1px solid #332200;
-    padding:6px 8px; text-align:center;
-}
+.ors-stat{ flex:1; background:#110800; border:1px solid #332200; padding:6px 8px; text-align:center; }
 .ors-icon{ display:block; font-size:14px; line-height:1; margin-bottom:2px; color:#ff3333; }
 .ors-name{ display:block; color:#554422; font-size:8px; letter-spacing:1px; margin-bottom:2px; }
 .ors-val{ display:block; color:#FFD700; font-size:13px; font-weight:bold; }
-
-/* GACHA CARD RESOURCE COST RANGE */
-.gacha-card .gc-cost-range{
-    background:#1a0e00; border:1px solid #442200;
-    padding:7px 8px; margin-top:4px;
-}
-.gc-cost-label{
-    color:#664400; font-size:9px; letter-spacing:2px;
-    text-transform:uppercase; margin-bottom:5px;
-}
+.gacha-card .gc-cost-range{ background:#1a0e00; border:1px solid #442200; padding:7px 8px; margin-top:4px; }
+.gc-cost-label{ color:#664400; font-size:9px; letter-spacing:2px; text-transform:uppercase; margin-bottom:5px; }
 .gc-cost-values{ display:flex; justify-content:space-between; gap:4px; flex-wrap:wrap; }
+#gachaReveal .gr-cost-paid{ font-size:12px; letter-spacing:1px; font-family:'Courier New',monospace; color:#886633; margin-bottom:16px; padding:5px 12px; background:rgba(0,0,0,0.3); border:1px solid #332200; display:inline-block; }
 
-/* GACHA REVEAL COST PAID */
-.gr-cost-paid{
-    font-size:12px; letter-spacing:1px; font-family:'Courier New',monospace;
-    color:#886633; margin-bottom:16px; padding:5px 12px;
-    background:rgba(0,0,0,0.3); border:1px solid #332200; display:inline-block;
-}
-
-/* UPGRADE PANEL */
+/* UPGRADE */
 #upgradePanel{ display:none; }
-.upgrade-card{
-    background:#111820; border:2px solid #1a3050;
-    padding:16px 18px; margin-bottom:12px;
-    transition:border-color 0.15s;
-}
+.upgrade-card{ background:#111820; border:2px solid #1a3050; padding:16px 18px; margin-bottom:12px; transition:border-color 0.15s; }
 .upgrade-card:hover{ border-color:rgba(0,180,255,0.4); }
 .upgrade-card.maxed{ border-color:#2a4400; background:#0e1a08; }
 .upgrade-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
 .upgrade-name{ font-size:15px; font-weight:bold; color:white; display:flex; align-items:center; gap:8px; }
-.upgrade-tier-badge{
-    font-size:9px; letter-spacing:2px; font-weight:bold;
-    padding:2px 8px; border-radius:2px; text-transform:uppercase;
-}
+.upgrade-tier-badge{ font-size:9px; letter-spacing:2px; font-weight:bold; padding:2px 8px; border-radius:2px; text-transform:uppercase; }
 .upgrade-stat-row{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; font-size:12px; }
 .upgrade-current{ color:#556677; }
 .upgrade-current span{ color:#8bbcdd; font-weight:bold; font-size:14px; }
 .upgrade-arrow{ color:#334455; font-size:16px; }
 .upgrade-next{ color:#556677; }
 .upgrade-next span{ color:#00ff88; font-weight:bold; font-size:14px; }
-/* tier progress bar */
-.upgrade-tier-track{
-    width:100%; height:8px; background:rgba(255,255,255,0.05);
-    border:1px solid #1a3050; margin-bottom:12px; position:relative; overflow:hidden;
-}
+.upgrade-tier-track{ width:100%; height:8px; background:rgba(255,255,255,0.05); border:1px solid #1a3050; margin-bottom:12px; position:relative; overflow:hidden; }
 .upgrade-tier-fill{ height:100%; transition:width 0.3s ease; position:relative; }
 .upgrade-tier-fill::after{ content:''; position:absolute; top:0; right:0; width:4px; height:100%; background:rgba(255,255,255,0.5); filter:blur(1px); }
 .upgrade-tier-pips{ display:flex; justify-content:space-between; margin-bottom:12px; gap:4px; }
-.upgrade-pip{
-    flex:1; height:5px; background:#1a2a3a; border:1px solid #1a3050;
-    transition:all 0.2s;
-}
+.upgrade-pip{ flex:1; height:5px; background:#1a2a3a; border:1px solid #1a3050; transition:all 0.2s; }
 .upgrade-pip.filled{ background:#4af; border-color:#4af; box-shadow:0 0 4px rgba(0,180,255,0.4); }
 .upgrade-pip.filled.green{ background:#00ff88; border-color:#00ff88; box-shadow:0 0 4px rgba(0,255,100,0.4); }
 .upgrade-footer{ display:flex; justify-content:space-between; align-items:center; }
 .upgrade-cost{ font-size:13px; font-weight:bold; }
-.upgradeButton{
-    background:#0d1a2a; border:2px solid #4af; color:#4af;
-    padding:9px 20px; cursor:pointer; font-weight:bold; font-size:13px;
-    letter-spacing:1px; transition:all 0.15s; white-space:nowrap;
-}
+.upgradeButton{ background:#0d1a2a; border:2px solid #4af; color:#4af; padding:9px 20px; cursor:pointer; font-weight:bold; font-size:13px; letter-spacing:1px; transition:all 0.15s; white-space:nowrap; }
 .upgradeButton:hover{ background:#4af; color:#000; }
-.upgradeButton.maxed-btn{
-    border-color:#224400; color:#336611; cursor:default; pointer-events:none;
-}
+.upgradeButton.maxed-btn{ border-color:#224400; color:#336611; cursor:default; pointer-events:none; }
 .upgrade-maxed-label{ color:#336611; font-size:12px; letter-spacing:2px; font-weight:bold; }
-.upgrade-summary{
-    background:#0a1018; border:1px solid #1a3050;
-    padding:10px 14px; margin-bottom:16px;
-    display:flex; justify-content:space-between; align-items:center;
-    font-size:11px; color:#336688;
-}
+.upgrade-summary{ background:#0a1018; border:1px solid #1a3050; padding:10px 14px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#336688; }
 .upgrade-summary strong{ color:#FFD700; font-size:13px; }
 
-/* INVENTORY OVERLAY */
-#inventoryOverlay{
-    position:fixed; inset:0;
-    background:rgba(0,0,0,0.92); z-index:10;
-    display:none; justify-content:center; align-items:center;
-}
-#inventoryContainer{
-    background:#080c10; border:3px solid rgba(0,180,255,0.5);
-    padding:28px; max-width:580px; width:92%;
-    max-height:85vh; overflow-y:auto;
-    box-shadow:0 0 40px rgba(0,120,255,0.25);
-    font-family:'Courier New',monospace;
-}
+/* INVENTORY */
+#inventoryOverlay{ position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:10; display:none; justify-content:center; align-items:center; }
+#inventoryContainer{ background:#080c10; border:3px solid rgba(0,180,255,0.5); padding:28px; max-width:580px; width:92%; max-height:85vh; overflow-y:auto; box-shadow:0 0 40px rgba(0,120,255,0.25); font-family:'Courier New',monospace; }
 #invHeader{ text-align:center; color:#4af; font-size:20px; font-weight:bold; margin-bottom:4px; letter-spacing:3px; text-transform:uppercase; }
 #invSubtitle{ text-align:center; color:#336688; font-size:11px; margin-bottom:20px; letter-spacing:1px; }
 #invGrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; margin-bottom:20px; min-height:80px; }
-.inv-slot{
-    background:#0d1520; border:1px solid #1a3050;
-    padding:14px 10px; text-align:center; transition:border-color 0.2s;
-}
+.inv-slot{ background:#0d1520; border:1px solid #1a3050; padding:14px 10px; text-align:center; transition:border-color 0.2s; }
 .inv-slot:hover{ border-color:rgba(0,180,255,0.5); }
 .inv-slot .is-icon{ font-size:30px; margin-bottom:6px; }
 .inv-slot .is-name{ color:#8bbcdd; font-size:11px; font-weight:bold; margin-bottom:4px; letter-spacing:1px; }
 .inv-slot .is-qty{ color:#FFD700; font-size:16px; font-weight:bold; }
 .inv-slot .is-unit{ color:#556677; font-size:9px; margin-top:2px; }
 .inv-empty{ color:#334455; font-size:12px; text-align:center; padding:30px; letter-spacing:1px; grid-column:1/-1; }
-#closeInventory{
-    width:100%; background:#080c10; border:2px solid rgba(0,180,255,0.4);
-    color:rgba(0,180,255,0.7); padding:12px; cursor:pointer;
-    font-family:'Courier New',monospace; font-size:13px; font-weight:bold;
-    letter-spacing:2px; transition:all 0.2s;
-}
+#closeInventory{ width:100%; background:#080c10; border:2px solid rgba(0,180,255,0.4); color:rgba(0,180,255,0.7); padding:12px; cursor:pointer; font-family:'Courier New',monospace; font-size:13px; font-weight:bold; letter-spacing:2px; transition:all 0.2s; }
 #closeInventory:hover{ background:rgba(0,120,255,0.2); color:#4af; border-color:#4af; }
+
+/* =====================================================
+   ▼▼▼  MOBILE LANDSCAPE  ▼▼▼
+   max-width:899px AND landscape orientation
+   Adjustments: tighter widths, repositioned target HUD
+   ===================================================== */
+@media (max-width:899px) and (orientation:landscape){
+    /* Shrink HUD bars */
+    .hud{ width:160px; font-size:10px; }
+    .bar{ height:8px; margin-bottom:5px; }
+    #credits{ top:115px; font-size:12px; padding:5px 9px; }
+
+    /* Controls legend: compact */
+    .ui{ font-size:10px; padding:5px 8px; line-height:1.4; max-width:140px; }
+
+    /* Joystick: move slightly inward */
+    #joystickBase{ width:100px; height:100px; bottom:60px; left:60px; }
+    #joystickStick{ width:40px; height:40px; }
+
+    /* Action buttons: smaller */
+    .action-btn{ width:64px; height:64px; font-size:9px; }
+    .action-btn .btn-icon{ font-size:18px; }
+    #actionButtons{ bottom:16px; right:10px; gap:8px; }
+
+    /* Target HUD: move to TOP-RIGHT to avoid button collision */
+    #targetHUD{
+        top:10px; right:170px;
+        bottom:auto; width:190px;
+    }
+    #planetPortraitWrap{ height:72px; }
+
+    /* Proximity alert: higher up */
+    #proximityAlert{ bottom:160px; font-size:13px; }
+
+    /* Overlay containers: use more height on landscape */
+    #shopContainer, #oreShopContainer, #inventoryContainer{
+        max-height:90vh; padding:16px;
+    }
+    #shopHeader{ font-size:18px; }
+    .shopItem{ padding:10px; }
+    .itemName{ font-size:13px; }
+    .gacha-grid{ grid-template-columns:1fr 1fr; }
+}
+
+/* =====================================================
+   ▼▼▼  MOBILE PORTRAIT  ▼▼▼
+   max-width:599px AND portrait orientation
+   Full layout rework for narrow screens
+   ===================================================== */
+@media (max-width:599px) and (orientation:portrait){
+
+    /* -- Controls legend: hidden by default, toggle button shows -- */
+    .ui{ display:none; }
+    .ui-full{ display:none; }
+    .ui-toggle{ display:flex; }
+
+    /* -- HUD: horizontal strip along very top -- */
+    .hud{
+        top:0; right:0; left:0; width:100%;
+        display:flex; flex-direction:row;
+        align-items:center; gap:0;
+        background:rgba(0,0,0,0.75);
+        border-bottom:1px solid rgba(255,255,255,0.15);
+        padding:4px 8px 4px 44px; /* left pad for toggle btn */
+        text-align:left; font-size:10px;
+        z-index:4;
+    }
+    /* Each stat group: label + bar side by side */
+    .hud-stat{ display:flex; flex-direction:column; flex:1; padding:0 4px; }
+    .hud-label{ font-size:8px; color:rgba(255,255,255,0.5); letter-spacing:1px; margin-bottom:2px; }
+    .bar{ width:100%; height:6px; margin-bottom:0; }
+
+    /* -- Credits: top-right corner, compact -- */
+    #credits{
+        top:0; right:0;
+        font-size:11px; padding:4px 8px;
+        background:rgba(0,0,0,0.75);
+        border:none; border-left:1px solid rgba(255,215,0,0.25);
+        border-bottom:1px solid rgba(255,215,0,0.2);
+        z-index:5; line-height:32px; /* match HUD height ~32px */
+    }
+
+    /* -- Joystick: bottom-left, smaller -- */
+    #joystickBase{ width:100px; height:100px; bottom:20px; left:20px; }
+    #joystickStick{ width:38px; height:38px; }
+
+    /* -- Action buttons: row along bottom-right -- */
+    #actionButtons{
+        flex-direction:row; bottom:20px; right:12px; gap:8px;
+    }
+    .action-btn{ width:68px; height:68px; font-size:9px; }
+    .action-btn .btn-icon{ font-size:18px; }
+
+    /* -- Target HUD: top-right, BELOW the HUD bar, compact -- */
+    #targetHUD{
+        top:36px; right:0;
+        bottom:auto; width:170px;
+        border-top:none;
+    }
+    #planetPortraitWrap{ height:68px; }
+    .thud-body{ padding:6px 8px; }
+    .thud-row{ font-size:9px; margin-bottom:3px; }
+    .thud-label{ font-size:8px; }
+
+    /* -- Proximity alert: above action buttons -- */
+    #proximityAlert{ bottom:100px; font-size:12px; padding:6px 12px; }
+    #proximityAlert.dual .prox-panel{ font-size:11px; padding:6px 10px; }
+
+    /* -- Overlays: use full screen on small portrait -- */
+    #shopContainer,
+    #oreShopContainer,
+    #inventoryContainer{
+        width:100%; max-width:100%;
+        max-height:92vh; padding:14px;
+        border-radius:0; border-left:none; border-right:none;
+        margin:0;
+    }
+    #shopHeader{ font-size:17px; letter-spacing:1px; }
+    #shopSubtitle{ font-size:11px; }
+    .shopItem{ flex-direction:column; align-items:flex-start; gap:8px; }
+    .itemPrice{ margin-right:0; }
+    .buyButton{ width:100%; }
+    .shop-tab{ font-size:10px; padding:7px 0; }
+
+    /* Gacha grid: single column on very narrow portrait */
+    .gacha-grid{ grid-template-columns:1fr; }
+
+    /* Upgrade cards compact */
+    .upgrade-stat-row{ flex-wrap:wrap; gap:4px; }
+
+    /* Inv grid: 2 col */
+    #invGrid{ grid-template-columns:repeat(2,1fr); }
+
+    /* Gacha reveal compact */
+    #gachaReveal .gr-box{ padding:24px 20px; min-width:260px; }
+    #gachaReveal .gr-icon{ font-size:44px; }
+    #gachaReveal .gr-ore-name{ font-size:18px; }
+}
+
+/* =====================================================
+   PORTRAIT HUD — restructured inner layout
+   The JS-generated HUD divs need wrappers. We inject
+   .hud-stat wrapper via JS on portrait detection.
+   On PC/landscape the .hud-stat wrapper is transparent.
+   ===================================================== */
+.hud-stat{ display:contents; } /* neutral on non-portrait */
+@media (max-width:599px) and (orientation:portrait){
+    .hud-stat{ display:flex; flex-direction:column; flex:1; padding:0 3px; }
+    .hud-stat .hud-label{ display:block; }
+}
 </style>
 </head>
 
 <body>
 
-<div class="ui">
-<b>VEXARION PROTOTYPE</b><br><br>
+<!-- CONTROLS LEGEND TOGGLE (portrait only) -->
+<button class="ui-toggle" id="uiToggle" onclick="toggleLegend()">?</button>
+
+<!-- CONTROLS LEGEND -->
+<div class="ui" id="uiLegend">
+<b>VEXARION</b><br><br>
 W = Thrust<br>
 A / D = Rotate<br>
 S = Brake<br>
 LSHIFT = Boost<br>
-<span style="color:#FFD700;">P = Dock Planet  |  O = Mine Asteroid</span><br>
+<span style="color:#FFD700;">P = Dock  |  O = Mine</span><br>
 <span style="color:#4af;">G = Target HUD</span><br>
 <span style="color:#ff9900;">I = Inventory</span><br><br>
-Mobile: Analog Stick = Aim + Thrust
+<span style="color:#888;font-size:10px;">Tap toggle to hide</span>
 </div>
 
-<div class="hud">
-<div>HP</div><div class="bar"><div id="hp" class="fill"></div></div>
-<div>ARMOR</div><div class="bar"><div id="armor" class="fill"></div></div>
-<div>FUEL</div><div class="bar"><div id="fuel" class="fill"></div></div>
-<div>ENERGY</div><div class="bar"><div id="energy" class="fill"></div></div>
+<!-- HUD -->
+<div class="hud" id="hud">
+    <div class="hud-stat">
+        <span class="hud-label">HP</span>
+        <div class="bar"><div id="hp" class="fill"></div></div>
+    </div>
+    <div class="hud-stat">
+        <span class="hud-label">ARMOR</span>
+        <div class="bar"><div id="armor" class="fill"></div></div>
+    </div>
+    <div class="hud-stat">
+        <span class="hud-label">FUEL</span>
+        <div class="bar"><div id="fuel" class="fill"></div></div>
+    </div>
+    <div class="hud-stat">
+        <span class="hud-label">ENERGY</span>
+        <div class="bar"><div id="energy" class="fill"></div></div>
+    </div>
 </div>
 
 <div id="credits">CREDITS: <span id="creditsAmount">1000</span> ¢</div>
@@ -449,7 +553,7 @@ Mobile: Analog Stick = Aim + Thrust
 <div id="targetHUD">
     <div class="thud-header">
         <span class="thud-title">◈ TARGET LOCK</span>
-        <span class="thud-toggle-hint">[G] TOGGLE</span>
+        <span class="thud-toggle-hint">[G]</span>
     </div>
     <div id="planetPortraitWrap">
         <canvas id="planetPortrait" width="230" height="100"></canvas>
@@ -492,17 +596,12 @@ Mobile: Analog Stick = Aim + Thrust
             <span>Credits: <span id="shopCreditsDisplay" style="color:#FFD700;">1000</span> ¢</span>
         </div>
     </div>
-    <!-- TABS -->
     <div class="shop-tabs">
         <div class="shop-tab active" id="tabBuy"     onclick="switchShopTab('buy')">🛒 BUY</div>
         <div class="shop-tab"        id="tabSell"    onclick="switchShopTab('sell')">💰 SELL</div>
         <div class="shop-tab"        id="tabUpgrade" onclick="switchShopTab('upgrade')">🔧 UPGRADE</div>
     </div>
-    <!-- BUY PANEL -->
-    <div id="buyPanel">
-        <div id="shopInventory"></div>
-    </div>
-    <!-- SELL PANEL -->
+    <div id="buyPanel"><div id="shopInventory"></div></div>
     <div id="sellPanel">
         <div class="sell-total-preview">
             <span>CARGO VALUE (ALL)</span>
@@ -511,7 +610,6 @@ Mobile: Analog Stick = Aim + Thrust
         <div id="sellInventory"></div>
         <button class="sell-all-btn" onclick="sellAllOre()">💰 SELL ALL CARGO</button>
     </div>
-    <!-- UPGRADE PANEL -->
     <div id="upgradePanel">
         <div class="upgrade-summary">
             <span>AVAILABLE CREDITS</span>
@@ -531,7 +629,6 @@ Mobile: Analog Stick = Aim + Thrust
 <div id="oreShopContainer">
     <div id="oreShopHeader">⛏ ASTEROID MINE ⛏</div>
     <div id="oreShopSubtitle">Fragment Extraction — Operations cost ship resources</div>
-    <!-- Ship resource status bar -->
     <div class="ore-resource-status">
         <div class="ors-label">SHIP RESOURCES</div>
         <div class="ors-stats">
@@ -574,6 +671,17 @@ Mobile: Analog Stick = Aim + Thrust
 
 <script>
 // =====================================================
+// LEGEND TOGGLE (portrait only)
+// =====================================================
+let legendVisible = false;
+function toggleLegend(){
+    const l = document.getElementById('uiLegend');
+    legendVisible = !legendVisible;
+    l.style.display = legendVisible ? 'block' : 'none';
+    document.getElementById('uiToggle').textContent = legendVisible ? '✕' : '?';
+}
+
+// =====================================================
 // CANVAS
 // =====================================================
 const canvas = document.getElementById("game");
@@ -598,10 +706,10 @@ let targetHudVisible = true;
 const DOCK_BUFFER           = 120;
 const SCAN_RADIUS           = 900;
 const SHIP_COLLISION_RADIUS  = 20;
-const ASTEROID_HIT_IFRAMES   = 90;   // global ship invincibility frames after any hit
-const ASTEROID_COOLDOWN      = 60;   // per-asteroid cooldown frames between hits
-const ASTEROID_SCAN_RADIUS   = 600;  // screen-space distance to detect & show asteroid in target HUD
-const ASTEROID_DOCK_BUFFER   = 80;   // added to asteroid radius → dock zone edge
+const ASTEROID_HIT_IFRAMES   = 90;
+const ASTEROID_COOLDOWN      = 60;
+const ASTEROID_SCAN_RADIUS   = 600;
+const ASTEROID_DOCK_BUFFER   = 80;
 
 // =====================================================
 // PLANETS
@@ -722,8 +830,6 @@ btnMine.addEventListener('touchstart', mineTap, {passive:false});
 function updateActionButtons(){
     const nearPlanet   = getNearestDockablePlanet();
     const nearAsteroid = getNearestDockableAsteroid();
-
-    // DOCK button — planet only
     if(nearPlanet && !shopOpen){
         btnDock.disabled = false;
         btnDock.classList.remove('unavailable');
@@ -731,10 +837,8 @@ function updateActionButtons(){
     } else {
         btnDock.disabled = true;
         btnDock.classList.add('unavailable');
-        btnDock.style.display = nearAsteroid ? 'none' : 'flex'; // hide when only asteroid visible
+        btnDock.style.display = nearAsteroid ? 'none' : 'flex';
     }
-
-    // MINE button — asteroid only
     if(nearAsteroid && !shopOpen){
         btnMine.disabled = false;
         btnMine.classList.remove('unavailable');
@@ -742,7 +846,6 @@ function updateActionButtons(){
     } else {
         btnMine.style.display = 'none';
     }
-
     btnBoost.disabled = (ship.energy <= 0);
 }
 
@@ -799,104 +902,39 @@ const ship = {
     friction:0.985, maxSpeed:8, boostMaxSpeed:16,
     size:40, thrusting:false, boosting:false,
     hp:100, armor:100, fuel:100, energy:100,
-    // Upgrade capacities — start at 100, each tier adds 25 (max 5 tiers = 225)
     maxHp:100, maxArmor:100, maxFuel:100, maxEnergy:100,
     invincibleFrames: 0
 };
-
-// Upgrade state — tracks tier (0-5) per stat
 const shipUpgrades = { hp:0, armor:0, fuel:0, energy:0 };
-
-// Upgrade definitions
 const UPGRADE_DEFS = [
-    {
-        stat:'hp', label:'Hull Integrity', icon:'❤',
-        color:'#ff4444', fillClass:'',
-        desc:'Reinforced hull plating increases maximum hit points.',
-        costs:[200, 400, 700, 1100, 1600],  // cost per tier (tier 1→5)
-        maxKey:'maxHp'
-    },
-    {
-        stat:'armor', label:'Armor Plating', icon:'🛡',
-        color:'#aaaaaa', fillClass:'',
-        desc:'Composite alloy layers improve damage absorption capacity.',
-        costs:[180, 360, 620, 980, 1400],
-        maxKey:'maxArmor'
-    },
-    {
-        stat:'fuel', label:'Fuel Tank', icon:'⛽',
-        color:'#ff8800', fillClass:'',
-        desc:'Extended fuel cells allow longer deep-space operations.',
-        costs:[150, 300, 520, 820, 1200],
-        maxKey:'maxFuel'
-    },
-    {
-        stat:'energy', label:'Energy Capacitor', icon:'⚡',
-        color:'#00ccff', fillClass:'',
-        desc:'High-density capacitors boost total stored energy output.',
-        costs:[160, 320, 560, 880, 1280],
-        maxKey:'maxEnergy'
-    },
+    { stat:'hp',     label:'Hull Integrity',    icon:'❤',  color:'#ff4444', desc:'Reinforced hull plating increases maximum hit points.',        costs:[200,400,700,1100,1600], maxKey:'maxHp'     },
+    { stat:'armor',  label:'Armor Plating',      icon:'🛡', color:'#aaaaaa', desc:'Composite alloy layers improve damage absorption capacity.',   costs:[180,360,620,980,1400],  maxKey:'maxArmor'  },
+    { stat:'fuel',   label:'Fuel Tank',           icon:'⛽', color:'#ff8800', desc:'Extended fuel cells allow longer deep-space operations.',      costs:[150,300,520,820,1200],  maxKey:'maxFuel'   },
+    { stat:'energy', label:'Energy Capacitor',    icon:'⚡', color:'#00ccff', desc:'High-density capacitors boost total stored energy output.',   costs:[160,320,560,880,1280],  maxKey:'maxEnergy' },
 ];
 
 // =====================================================
 // THRUSTER
 // =====================================================
-const thruster = {
-    rotation:0, targetRotation:0,
-    scaleX:0, targetScaleX:0, scaleY:1
-};
+const thruster = { rotation:0, targetRotation:0, scaleX:0, targetScaleX:0, scaleY:1 };
 
 // =====================================================
 // STARS
 // =====================================================
 const stars = [];
 for(let i=0;i<400;i++){
-    stars.push({
-        x: Math.random()*8000-4000,
-        y: Math.random()*8000-4000,
-        size: Math.random()*2,
-        depth: Math.random()*0.6+0.5
-    });
+    stars.push({ x:Math.random()*8000-4000, y:Math.random()*8000-4000, size:Math.random()*2, depth:Math.random()*0.6+0.5 });
 }
 
 // =====================================================
-// PLANET HELPERS
+// HELPERS
 // =====================================================
-function getPlanetScreenPos(p){
-    return {
-        x: p.x - camera.x * p.depth + canvas.width/2,
-        y: p.y - camera.y * p.depth + canvas.height/2
-    };
-}
-function getShipScreenPos(){
-    return { x: canvas.width/2, y: canvas.height/2 };
-}
-function getDistanceToPlanet(p){
-    const ps = getPlanetScreenPos(p);
-    const ss = getShipScreenPos();
-    const dx = ss.x - ps.x, dy = ss.y - ps.y;
-    return Math.sqrt(dx*dx + dy*dy);
-}
-function isInDockZone(p){
-    return getDistanceToPlanet(p) < p.radius + DOCK_BUFFER;
-}
-function getNearestDockablePlanet(){
-    let nearest = null, nearestDist = Infinity;
-    for(const p of planets){
-        const d = getDistanceToPlanet(p);
-        if(d < p.radius + DOCK_BUFFER && d < nearestDist){ nearestDist = d; nearest = p; }
-    }
-    return nearest;
-}
-function getNearestScannablePlanet(){
-    let nearest = null, nearestDist = Infinity;
-    for(const p of planets){
-        const d = getDistanceToPlanet(p);
-        if(d < SCAN_RADIUS && d < nearestDist){ nearestDist = d; nearest = p; }
-    }
-    return nearest;
-}
+function getPlanetScreenPos(p){ return { x:p.x-camera.x*p.depth+canvas.width/2, y:p.y-camera.y*p.depth+canvas.height/2 }; }
+function getShipScreenPos(){ return { x:canvas.width/2, y:canvas.height/2 }; }
+function getDistanceToPlanet(p){ const ps=getPlanetScreenPos(p),ss=getShipScreenPos(),dx=ss.x-ps.x,dy=ss.y-ps.y; return Math.sqrt(dx*dx+dy*dy); }
+function isInDockZone(p){ return getDistanceToPlanet(p)<p.radius+DOCK_BUFFER; }
+function getNearestDockablePlanet(){ let n=null,nd=Infinity; for(const p of planets){ const d=getDistanceToPlanet(p); if(d<p.radius+DOCK_BUFFER&&d<nd){nd=d;n=p;} } return n; }
+function getNearestScannablePlanet(){ let n=null,nd=Infinity; for(const p of planets){ const d=getDistanceToPlanet(p); if(d<SCAN_RADIUS&&d<nd){nd=d;n=p;} } return n; }
 
 // =====================================================
 // PROXIMITY ALERT
@@ -905,595 +943,253 @@ function updateProximityAlert(){
     const alertEl = document.getElementById('proximityAlert');
     const nearPlanet   = getNearestDockablePlanet();
     const nearAsteroid = getNearestDockableAsteroid();
-    if(shopOpen){ alertEl.style.display = 'none'; return; }
-
+    if(shopOpen){ alertEl.style.display='none'; return; }
     if(nearPlanet && nearAsteroid){
-        // DUAL MODE
-        alertEl.className = 'dual';
-        alertEl.style.display = 'flex';
-        alertEl.innerHTML =
-            `<div class="prox-panel planet">🛸 ${nearPlanet.name}<br><span style="color:#FFD700;font-size:11px;">[ P ] DOCK PLANET</span></div>` +
-            `<div class="prox-panel asteroid">⛏ ASTEROID<br><span style="color:#FFD700;font-size:11px;">[ O ] MINE</span></div>`;
+        alertEl.className='dual'; alertEl.style.display='flex';
+        alertEl.innerHTML=`<div class="prox-panel planet">🛸 ${nearPlanet.name}<br><span style="color:#FFD700;font-size:11px;">[ P ] DOCK PLANET</span></div><div class="prox-panel asteroid">⛏ ASTEROID<br><span style="color:#FFD700;font-size:11px;">[ O ] MINE</span></div>`;
     } else if(nearPlanet){
-        alertEl.className = '';
-        alertEl.style.cssText = 'display:block;color:#00ff00;border-color:#00ff00;background:rgba(0,255,0,0.1);';
-        alertEl.innerHTML = `🛸 ${nearPlanet.name} DETECTED 🛸<br>Press <span style="color:#FFD700;">P</span> to Dock`;
+        alertEl.className=''; alertEl.style.cssText='display:block;color:#00ff00;border-color:#00ff00;background:rgba(0,255,0,0.1);';
+        alertEl.innerHTML=`🛸 ${nearPlanet.name} DETECTED 🛸<br>Press <span style="color:#FFD700;">P</span> to Dock`;
     } else if(nearAsteroid){
-        alertEl.className = '';
-        alertEl.style.cssText = 'display:block;color:#ffaa00;border-color:#ffaa00;background:rgba(255,120,0,0.1);';
-        alertEl.innerHTML = `⛏ ASTEROID DETECTED ⛏<br>Press <span style="color:#FFD700;">O</span> to Mine`;
-    } else {
-        alertEl.style.display = 'none';
-    }
+        alertEl.className=''; alertEl.style.cssText='display:block;color:#ffaa00;border-color:#ffaa00;background:rgba(255,120,0,0.1);';
+        alertEl.innerHTML=`⛏ ASTEROID DETECTED ⛏<br>Press <span style="color:#FFD700;">O</span> to Mine`;
+    } else { alertEl.style.display='none'; }
 }
 
 // =====================================================
 // SHOP
 // =====================================================
 function buildShopHTML(planet){
-    const acc = planet.shopAccent || '#FFD700';
-    let html = '';
+    const acc=planet.shopAccent||'#FFD700';
+    let html='';
     for(const section of planet.inventory){
-        html += `<div class="shopSection"><div class="sectionTitle" style="color:${acc};">${section.section}</div>`;
+        html+=`<div class="shopSection"><div class="sectionTitle" style="color:${acc};">${section.section}</div>`;
         for(const item of section.items){
-            const parts = [];
-            if(item.fuelAdd   > 0) parts.push(`+${item.fuelAdd}% Fuel`);
-            if(item.energyAdd > 0) parts.push(`+${item.energyAdd}% Energy`);
-            if(item.hpAdd     > 0) parts.push(`+${item.hpAdd} HP`);
-            if(item.armorAdd  > 0) parts.push(`+${item.armorAdd} Armor`);
-            html += `<div class="shopItem">
-                <div class="itemInfo">
-                    <div class="itemName">${item.name}</div>
-                    <div class="itemDesc">${item.desc}</div>
-                    <div class="itemStats" style="color:${acc};">${parts.join('  ·  ')}</div>
-                </div>
-                <div class="itemPrice" style="color:${acc};">${item.cost} ¢</div>
-                <button class="buyButton" style="border-color:${acc};color:${acc};" onclick="buyItem('${item.id}')">BUY</button>
-            </div>`;
+            const parts=[];
+            if(item.fuelAdd>0)   parts.push(`+${item.fuelAdd}% Fuel`);
+            if(item.energyAdd>0) parts.push(`+${item.energyAdd}% Energy`);
+            if(item.hpAdd>0)     parts.push(`+${item.hpAdd} HP`);
+            if(item.armorAdd>0)  parts.push(`+${item.armorAdd} Armor`);
+            html+=`<div class="shopItem"><div class="itemInfo"><div class="itemName">${item.name}</div><div class="itemDesc">${item.desc}</div><div class="itemStats" style="color:${acc};">${parts.join('  ·  ')}</div></div><div class="itemPrice" style="color:${acc};">${item.cost} ¢</div><button class="buyButton" style="border-color:${acc};color:${acc};" onclick="buyItem('${item.id}')">BUY</button></div>`;
         }
-        html += `</div>`;
+        html+=`</div>`;
     }
     return html;
 }
 function openShop(planet){
-    shopOpen = true;
-    currentShopTab = 'buy';
-    document.getElementById('shopHeader').textContent   = planet.shopTitle;
-    document.getElementById('shopSubtitle').textContent = planet.shopSubtitle;
-    document.getElementById('shopHeader').style.color   = planet.shopAccent || '#FFD700';
-    document.getElementById('shopInventory').innerHTML  = buildShopHTML(planet);
-    window._shopPlanet = planet;
-    document.getElementById('shopOverlay').style.display = 'flex';
-    // Reset tabs — buy active, others hidden
-    ['tabBuy','tabSell','tabUpgrade'].forEach(id => {
-        const el = document.getElementById(id);
-        if(el) el.classList.remove('active');
-    });
+    shopOpen=true; currentShopTab='buy';
+    document.getElementById('shopHeader').textContent=planet.shopTitle;
+    document.getElementById('shopSubtitle').textContent=planet.shopSubtitle;
+    document.getElementById('shopHeader').style.color=planet.shopAccent||'#FFD700';
+    document.getElementById('shopInventory').innerHTML=buildShopHTML(planet);
+    window._shopPlanet=planet;
+    document.getElementById('shopOverlay').style.display='flex';
+    ['tabBuy','tabSell','tabUpgrade'].forEach(id=>{ const el=document.getElementById(id); if(el)el.classList.remove('active'); });
     document.getElementById('tabBuy').classList.add('active');
-    document.getElementById('buyPanel').style.display     = 'block';
-    document.getElementById('sellPanel').style.display    = 'none';
-    document.getElementById('upgradePanel').style.display = 'none';
-    document.querySelector('.shop-tabs').style.setProperty('--tab-accent', planet.shopAccent || '#FFD700');
+    document.getElementById('buyPanel').style.display='block';
+    document.getElementById('sellPanel').style.display='none';
+    document.getElementById('upgradePanel').style.display='none';
+    document.querySelector('.shop-tabs').style.setProperty('--tab-accent',planet.shopAccent||'#FFD700');
     updateShopDisplay();
 }
-function closeShop(){
-    shopOpen = false;
-    window._shopPlanet  = null;
-    window._shopAsteroid = null;
-    document.getElementById('shopOverlay').style.display = 'none';
-}
+function closeShop(){ shopOpen=false; window._shopPlanet=null; window._shopAsteroid=null; document.getElementById('shopOverlay').style.display='none'; }
 
 // =====================================================
 // ORE DEFINITIONS
 // =====================================================
 const ORE_TABLE = [
-    // id, name, icon, rarity(0-3), tierMin, tierMax (units per pull), sellPrice (per unit)
-    { id:'iron',       name:'Iron Ore',        icon:'🪨', rarity:0, min:8,  max:25,  rarityLabel:'COMMON',   color:'#aaaaaa', sellPrice:2  },
-    { id:'silica',     name:'Silica Fragment',  icon:'🔮', rarity:0, min:5,  max:20,  rarityLabel:'COMMON',   color:'#aaaaaa', sellPrice:3  },
-    { id:'copper',     name:'Copper Ore',       icon:'🟠', rarity:1, min:4,  max:14,  rarityLabel:'UNCOMMON', color:'#44ff44', sellPrice:7  },
-    { id:'nickel',     name:'Nickel Chunk',     icon:'⚙️',  rarity:1, min:3,  max:12,  rarityLabel:'UNCOMMON', color:'#44ff44', sellPrice:8  },
-    { id:'cobalt',     name:'Cobalt Shard',     icon:'🔵', rarity:1, min:2,  max:10,  rarityLabel:'UNCOMMON', color:'#44ff44', sellPrice:10 },
-    { id:'titanium',   name:'Titanium Ore',     icon:'⬜', rarity:2, min:1,  max:6,   rarityLabel:'RARE',     color:'#4488ff', sellPrice:25 },
-    { id:'iridium',    name:'Iridium Vein',     icon:'🟣', rarity:2, min:1,  max:5,   rarityLabel:'RARE',     color:'#4488ff', sellPrice:35 },
-    { id:'darkcrystal',name:'Dark Crystal',    icon:'🖤', rarity:3, min:1,  max:3,   rarityLabel:'EPIC',     color:'#cc44ff', sellPrice:80 },
-    { id:'vexorite',   name:'Vexorite Core',   icon:'🌟', rarity:3, min:1,  max:2,   rarityLabel:'EPIC',     color:'#cc44ff', sellPrice:120},
+    {id:'iron',       name:'Iron Ore',       icon:'🪨',rarity:0,min:8, max:25,rarityLabel:'COMMON',  color:'#aaaaaa',sellPrice:2  },
+    {id:'silica',     name:'Silica Fragment', icon:'🔮',rarity:0,min:5, max:20,rarityLabel:'COMMON',  color:'#aaaaaa',sellPrice:3  },
+    {id:'copper',     name:'Copper Ore',      icon:'🟠',rarity:1,min:4, max:14,rarityLabel:'UNCOMMON',color:'#44ff44',sellPrice:7  },
+    {id:'nickel',     name:'Nickel Chunk',    icon:'⚙️', rarity:1,min:3, max:12,rarityLabel:'UNCOMMON',color:'#44ff44',sellPrice:8  },
+    {id:'cobalt',     name:'Cobalt Shard',    icon:'🔵',rarity:1,min:2, max:10,rarityLabel:'UNCOMMON',color:'#44ff44',sellPrice:10 },
+    {id:'titanium',   name:'Titanium Ore',    icon:'⬜',rarity:2,min:1, max:6, rarityLabel:'RARE',    color:'#4488ff',sellPrice:25 },
+    {id:'iridium',    name:'Iridium Vein',    icon:'🟣',rarity:2,min:1, max:5, rarityLabel:'RARE',    color:'#4488ff',sellPrice:35 },
+    {id:'darkcrystal',name:'Dark Crystal',   icon:'🖤',rarity:3,min:1, max:3, rarityLabel:'EPIC',    color:'#cc44ff',sellPrice:80 },
+    {id:'vexorite',   name:'Vexorite Core',  icon:'🌟',rarity:3,min:1, max:2, rarityLabel:'EPIC',    color:'#cc44ff',sellPrice:120},
 ];
-
-// Resource cost pool — all 4 resources can be drawn for any pack.
-// Each rarity tier defines a min/max drain range per resource.
-// At roll-time, one resource is picked randomly and amount is rolled within the range.
-const RESOURCE_COST_TIERS = {
-    //              fuel        energy      armor       hp
-    common:   { fuel:[10,20], energy:[12,22], armor:[8,15],  hp:[5,12]  },
-    uncommon: { fuel:[20,32], energy:[22,35], armor:[15,25], hp:[12,22] },
-    rare:     { fuel:[30,45], energy:[35,50], armor:[22,35], hp:[20,32] },
-    epic:     { fuel:[42,60], energy:[48,65], armor:[30,48], hp:[28,45] },
-};
-const RESOURCE_POOL = [
-    { key:'fuel',   icon:'⛽', label:'FUEL',    color:'#ff8800' },
-    { key:'energy', icon:'⚡', label:'ENERGY',  color:'#00ccff' },
-    { key:'armor',  icon:'🛡', label:'ARMOR',   color:'#aaaaaa' },
-    { key:'hp',     icon:'❤', label:'HULL HP', color:'#ff3333' },
-];
-
-function rollResourceCost(rarityKey){
-    const tier   = RESOURCE_COST_TIERS[rarityKey];
-    const res    = RESOURCE_POOL[Math.floor(Math.random() * RESOURCE_POOL.length)];
-    const range  = tier[res.key];
-    const amount = range[0] + Math.floor(Math.random() * (range[1] - range[0] + 1));
-    return { ...res, amount };
-}
-
-// Gacha packs — no static resource cost anymore, it's rolled at purchase time.
-// costRarityKey maps to RESOURCE_COST_TIERS for the roll range shown in the UI.
-const GACHA_PACKS = [
-    {
-        id:'basic', name:'Basic Probe', icon:'📦',
-        desc:'Surface scan extraction. Low risk, guaranteed result.',
-        costRarityKey:'common',
-        rarity:'rarity-common',
-        pool: [
-            { oreId:'iron',    weight:50 },
-            { oreId:'silica',  weight:40 },
-            { oreId:'copper',  weight:10 },
-        ]
-    },
-    {
-        id:'deep', name:'Deep Drill', icon:'🔩',
-        desc:'Sub-surface boring. Moderate resource draw, better yields.',
-        costRarityKey:'uncommon',
-        rarity:'rarity-uncommon',
-        pool: [
-            { oreId:'iron',    weight:20 },
-            { oreId:'copper',  weight:30 },
-            { oreId:'nickel',  weight:25 },
-            { oreId:'cobalt',  weight:15 },
-            { oreId:'titanium',weight:10 },
-        ]
-    },
-    {
-        id:'seismic', name:'Seismic Burst', icon:'💥',
-        desc:'Explosive fracture mining. High resource toll, rare materials accessible.',
-        costRarityKey:'rare',
-        rarity:'rarity-rare',
-        pool: [
-            { oreId:'copper',    weight:15 },
-            { oreId:'cobalt',    weight:15 },
-            { oreId:'titanium',  weight:30 },
-            { oreId:'iridium',   weight:25 },
-            { oreId:'darkcrystal',weight:15 },
-        ]
-    },
-    {
-        id:'quantum', name:'Quantum Core Tap', icon:'✨',
-        desc:'Experimental deep-field resonance. Extreme resource drain — legendary yields possible.',
-        costRarityKey:'epic',
-        rarity:'rarity-epic',
-        pool: [
-            { oreId:'titanium',   weight:15 },
-            { oreId:'iridium',    weight:20 },
-            { oreId:'darkcrystal',weight:30 },
-            { oreId:'vexorite',   weight:35 },
-        ]
-    },
+const RESOURCE_COST_TIERS={common:{fuel:[10,20],energy:[12,22],armor:[8,15],hp:[5,12]},uncommon:{fuel:[20,32],energy:[22,35],armor:[15,25],hp:[12,22]},rare:{fuel:[30,45],energy:[35,50],armor:[22,35],hp:[20,32]},epic:{fuel:[42,60],energy:[48,65],armor:[30,48],hp:[28,45]}};
+const RESOURCE_POOL=[{key:'fuel',icon:'⛽',label:'FUEL',color:'#ff8800'},{key:'energy',icon:'⚡',label:'ENERGY',color:'#00ccff'},{key:'armor',icon:'🛡',label:'ARMOR',color:'#aaaaaa'},{key:'hp',icon:'❤',label:'HULL HP',color:'#ff3333'}];
+function rollResourceCost(rarityKey){ const tier=RESOURCE_COST_TIERS[rarityKey],res=RESOURCE_POOL[Math.floor(Math.random()*RESOURCE_POOL.length)],range=tier[res.key],amount=range[0]+Math.floor(Math.random()*(range[1]-range[0]+1)); return {...res,amount}; }
+const GACHA_PACKS=[
+    {id:'basic',   name:'Basic Probe',       icon:'📦',desc:'Surface scan extraction. Low risk, guaranteed result.',                                   costRarityKey:'common',   rarity:'rarity-common',   pool:[{oreId:'iron',weight:50},{oreId:'silica',weight:40},{oreId:'copper',weight:10}]},
+    {id:'deep',    name:'Deep Drill',         icon:'🔩',desc:'Sub-surface boring. Moderate resource draw, better yields.',                              costRarityKey:'uncommon', rarity:'rarity-uncommon', pool:[{oreId:'iron',weight:20},{oreId:'copper',weight:30},{oreId:'nickel',weight:25},{oreId:'cobalt',weight:15},{oreId:'titanium',weight:10}]},
+    {id:'seismic', name:'Seismic Burst',      icon:'💥',desc:'Explosive fracture mining. High resource toll, rare materials accessible.',               costRarityKey:'rare',     rarity:'rarity-rare',     pool:[{oreId:'copper',weight:15},{oreId:'cobalt',weight:15},{oreId:'titanium',weight:30},{oreId:'iridium',weight:25},{oreId:'darkcrystal',weight:15}]},
+    {id:'quantum', name:'Quantum Core Tap',   icon:'✨',desc:'Experimental deep-field resonance. Extreme resource drain — legendary yields possible.',   costRarityKey:'epic',     rarity:'rarity-epic',     pool:[{oreId:'titanium',weight:15},{oreId:'iridium',weight:20},{oreId:'darkcrystal',weight:30},{oreId:'vexorite',weight:35}]},
 ];
 
 // =====================================================
 // INVENTORY STATE
 // =====================================================
-const cargo = {}; // { oreId: amount }
-
-function addToCargo(oreId, amount){
-    cargo[oreId] = (cargo[oreId] || 0) + amount;
-}
+const cargo={};
+function addToCargo(oreId,amount){ cargo[oreId]=(cargo[oreId]||0)+amount; }
 
 // =====================================================
-// GACHA ROLL LOGIC
+// GACHA
 // =====================================================
 function rollGachaPack(pack){
-    // Weighted random pick from pool
-    const totalWeight = pack.pool.reduce((s,e) => s + e.weight, 0);
-    let roll = Math.random() * totalWeight;
-    let picked = pack.pool[pack.pool.length - 1];
-    for(const entry of pack.pool){
-        roll -= entry.weight;
-        if(roll <= 0){ picked = entry; break; }
-    }
-    const ore = ORE_TABLE.find(o => o.id === picked.oreId);
-    const amount = ore.min + Math.floor(Math.random() * (ore.max - ore.min + 1));
-    return { ore, amount };
+    const tw=pack.pool.reduce((s,e)=>s+e.weight,0);
+    let roll=Math.random()*tw, picked=pack.pool[pack.pool.length-1];
+    for(const e of pack.pool){ roll-=e.weight; if(roll<=0){picked=e;break;} }
+    const ore=ORE_TABLE.find(o=>o.id===picked.oreId);
+    const amount=ore.min+Math.floor(Math.random()*(ore.max-ore.min+1));
+    return {ore,amount};
 }
 
 // =====================================================
 // ORE SHOP
 // =====================================================
-let oreShopOpen = false;
-
+let oreShopOpen=false;
 function openAsteroidShop(asteroid){
-    oreShopOpen = true;
-    shopOpen    = true;
-    window._shopAsteroid = asteroid;
+    oreShopOpen=true; shopOpen=true; window._shopAsteroid=asteroid;
     updateOreShopResourceDisplay();
-
-    let html = '';
+    let html='';
     for(const pack of GACHA_PACKS){
-        const poolNames = pack.pool.map(e => {
-            const ore = ORE_TABLE.find(o => o.id === e.oreId);
-            return ore ? ore.name : e.oreId;
-        }).join(', ');
-
-        // Build cost range preview — show all 4 resources with their range for this rarity
-        const tier = RESOURCE_COST_TIERS[pack.costRarityKey];
-        const rangeHtml = RESOURCE_POOL.map(r => {
-            const rng = tier[r.key];
-            return `<span style="color:${r.color};font-size:10px;">${r.icon} ${rng[0]}–${rng[1]}</span>`;
-        }).join(' &nbsp;');
-
-        html += `
-        <div class="gacha-card ${pack.rarity}" onclick="buyGachaPack('${pack.id}')">
-            <div class="gc-rarity-bar"></div>
-            <div class="gc-icon">${pack.icon}</div>
-            <div class="gc-name">${pack.name}</div>
-            <div class="gc-desc">${pack.desc}</div>
-            <div class="gc-pool">Possible: ${poolNames}</div>
-            <div class="gc-cost-range">
-                <div class="gc-cost-label">⚠ RANDOM RESOURCE DRAIN</div>
-                <div class="gc-cost-values">${rangeHtml}</div>
-            </div>
-        </div>`;
+        const poolNames=pack.pool.map(e=>{const ore=ORE_TABLE.find(o=>o.id===e.oreId);return ore?ore.name:e.oreId;}).join(', ');
+        const tier=RESOURCE_COST_TIERS[pack.costRarityKey];
+        const rangeHtml=RESOURCE_POOL.map(r=>`<span style="color:${r.color};font-size:10px;">${r.icon} ${tier[r.key][0]}–${tier[r.key][1]}</span>`).join(' &nbsp;');
+        html+=`<div class="gacha-card ${pack.rarity}" onclick="buyGachaPack('${pack.id}')"><div class="gc-rarity-bar"></div><div class="gc-icon">${pack.icon}</div><div class="gc-name">${pack.name}</div><div class="gc-desc">${pack.desc}</div><div class="gc-pool">Possible: ${poolNames}</div><div class="gc-cost-range"><div class="gc-cost-label">⚠ RANDOM RESOURCE DRAIN</div><div class="gc-cost-values">${rangeHtml}</div></div></div>`;
     }
-    document.getElementById('gachaGrid').innerHTML = html;
-    document.getElementById('oreShopOverlay').style.display = 'flex';
+    document.getElementById('gachaGrid').innerHTML=html;
+    document.getElementById('oreShopOverlay').style.display='flex';
 }
-
 function updateOreShopResourceDisplay(){
-    document.getElementById('orsHP').textContent     = Math.round(ship.hp);
-    document.getElementById('orsArmor').textContent  = Math.round(ship.armor);
-    document.getElementById('orsFuel').textContent   = Math.round(ship.fuel);
-    document.getElementById('orsEnergy').textContent = Math.round(ship.energy);
-    const low = (id, val) => {
-        document.getElementById(id).style.color = val < 20 ? '#ff3333' : val < 40 ? '#ff8800' : '#FFD700';
-    };
-    low('orsHP',     ship.hp);
-    low('orsArmor',  ship.armor);
-    low('orsFuel',   ship.fuel);
-    low('orsEnergy', ship.energy);
+    document.getElementById('orsHP').textContent=Math.round(ship.hp);
+    document.getElementById('orsArmor').textContent=Math.round(ship.armor);
+    document.getElementById('orsFuel').textContent=Math.round(ship.fuel);
+    document.getElementById('orsEnergy').textContent=Math.round(ship.energy);
+    const low=(id,val)=>{ document.getElementById(id).style.color=val<20?'#ff3333':val<40?'#ff8800':'#FFD700'; };
+    low('orsHP',ship.hp); low('orsArmor',ship.armor); low('orsFuel',ship.fuel); low('orsEnergy',ship.energy);
 }
-
-function closeOreShop(){
-    oreShopOpen = false;
-    shopOpen    = false;
-    window._shopAsteroid = null;
-    document.getElementById('oreShopOverlay').style.display = 'none';
-}
-
+function closeOreShop(){ oreShopOpen=false; shopOpen=false; window._shopAsteroid=null; document.getElementById('oreShopOverlay').style.display='none'; }
 function buyGachaPack(packId){
-    const pack = GACHA_PACKS.find(p => p.id === packId);
-    if(!pack) return;
-
-    // Roll the resource cost NOW
-    const rolled = rollResourceCost(pack.costRarityKey);
-
-    const current = ship[rolled.key];
-    if(current < rolled.amount){
-        showNotification(`❌ Not enough ${rolled.label}! Need ${rolled.amount}, have ${Math.round(current)}`);
-        return;
-    }
-    if(rolled.key === 'hp' && current - rolled.amount < 1){
-        showNotification(`⚠ Hull integrity too low — operation would destroy the ship!`);
-        return;
-    }
-
-    ship[rolled.key] = Math.max(0, current - rolled.amount);
-
-    if(rolled.key === 'hp' || rolled.key === 'armor'){
-        const flash = document.getElementById('hitFlash');
-        flash.style.background = rolled.key === 'hp' ? 'rgba(255,30,30,0.35)' : 'rgba(180,180,180,0.25)';
-        setTimeout(()=>{ flash.style.background = 'rgba(255,30,30,0)'; }, 200);
-    }
-
-    updateHUD();
-    updateOreShopResourceDisplay();
-
-    const { ore, amount } = rollGachaPack(pack);
-    addToCargo(ore.id, amount);
-    showGachaReveal(ore, amount, rolled);
+    const pack=GACHA_PACKS.find(p=>p.id===packId); if(!pack) return;
+    const rolled=rollResourceCost(pack.costRarityKey);
+    const current=ship[rolled.key];
+    if(current<rolled.amount){ showNotification(`❌ Not enough ${rolled.label}! Need ${rolled.amount}, have ${Math.round(current)}`); return; }
+    if(rolled.key==='hp'&&current-rolled.amount<1){ showNotification(`⚠ Hull integrity too low — operation would destroy the ship!`); return; }
+    ship[rolled.key]=Math.max(0,current-rolled.amount);
+    if(rolled.key==='hp'||rolled.key==='armor'){ const flash=document.getElementById('hitFlash'); flash.style.background=rolled.key==='hp'?'rgba(255,30,30,0.35)':'rgba(180,180,180,0.25)'; setTimeout(()=>{flash.style.background='rgba(255,30,30,0)';},200); }
+    updateHUD(); updateOreShopResourceDisplay();
+    const {ore,amount}=rollGachaPack(pack);
+    addToCargo(ore.id,amount);
+    showGachaReveal(ore,amount,rolled);
 }
-
-// =====================================================
-// GACHA REVEAL
-// =====================================================
-function showGachaReveal(ore, amount, rolledCost){
-    document.getElementById('grIcon').textContent   = ore.icon;
-    document.getElementById('grName').textContent   = ore.name;
-    document.getElementById('grName').style.color   = ore.color;
-    document.getElementById('grAmount').textContent = `× ${amount} units obtained`;
-    const rarityEl = document.getElementById('grRarity');
-    rarityEl.textContent   = ore.rarityLabel;
-    rarityEl.style.color   = ore.color;
-    rarityEl.style.border  = `1px solid ${ore.color}`;
-    rarityEl.style.background = 'rgba(0,0,0,0.4)';
-
-    const costEl = document.getElementById('grCostPaid');
-    costEl.textContent = `${rolledCost.icon} −${rolledCost.amount} ${rolledCost.label} consumed`;
-    costEl.style.color       = rolledCost.color;
-    costEl.style.borderColor = rolledCost.color + '55';
-
-    const iconEl = document.getElementById('grIcon');
-    iconEl.style.animation = 'none';
-    void iconEl.offsetWidth;
-    iconEl.style.animation = '';
-
-    document.getElementById('gachaReveal').style.display = 'flex';
+function showGachaReveal(ore,amount,rolledCost){
+    document.getElementById('grIcon').textContent=ore.icon;
+    document.getElementById('grName').textContent=ore.name; document.getElementById('grName').style.color=ore.color;
+    document.getElementById('grAmount').textContent=`× ${amount} units obtained`;
+    const rarityEl=document.getElementById('grRarity'); rarityEl.textContent=ore.rarityLabel; rarityEl.style.color=ore.color; rarityEl.style.border=`1px solid ${ore.color}`; rarityEl.style.background='rgba(0,0,0,0.4)';
+    const costEl=document.getElementById('grCostPaid'); costEl.textContent=`${rolledCost.icon} −${rolledCost.amount} ${rolledCost.label} consumed`; costEl.style.color=rolledCost.color; costEl.style.borderColor=rolledCost.color+'55';
+    const iconEl=document.getElementById('grIcon'); iconEl.style.animation='none'; void iconEl.offsetWidth; iconEl.style.animation='';
+    document.getElementById('gachaReveal').style.display='flex';
 }
-
-function closeGachaReveal(){
-    document.getElementById('gachaReveal').style.display = 'none';
-}
+function closeGachaReveal(){ document.getElementById('gachaReveal').style.display='none'; }
 
 // =====================================================
 // INVENTORY
 // =====================================================
-let inventoryOpen = false;
-
-function openInventory(){
-    inventoryOpen = true;
-    shopOpen = true; // pause ship
-    buildInventoryUI();
-    document.getElementById('inventoryOverlay').style.display = 'flex';
-}
-
-function closeInventory(){
-    inventoryOpen = false;
-    shopOpen = false;
-    document.getElementById('inventoryOverlay').style.display = 'none';
-}
-
+let inventoryOpen=false;
+function openInventory(){ inventoryOpen=true; shopOpen=true; buildInventoryUI(); document.getElementById('inventoryOverlay').style.display='flex'; }
+function closeInventory(){ inventoryOpen=false; shopOpen=false; document.getElementById('inventoryOverlay').style.display='none'; }
 function buildInventoryUI(){
-    const grid = document.getElementById('invGrid');
-    const oreIds = Object.keys(cargo).filter(id => cargo[id] > 0);
-    if(oreIds.length === 0){
-        grid.innerHTML = '<div class="inv-empty">⬡ CARGO HOLD EMPTY ⬡<br><br>Purchase extraction packages<br>at asteroid mine zones.</div>';
-        return;
-    }
-    let html = '';
-    for(const oreId of oreIds){
-        const ore = ORE_TABLE.find(o => o.id === oreId);
-        if(!ore) continue;
-        html += `
-        <div class="inv-slot">
-            <div class="is-icon">${ore.icon}</div>
-            <div class="is-name">${ore.name}</div>
-            <div class="is-qty" style="color:${ore.color};">${cargo[oreId]}</div>
-            <div class="is-unit">UNITS</div>
-        </div>`;
-    }
-    grid.innerHTML = html;
+    const grid=document.getElementById('invGrid');
+    const oreIds=Object.keys(cargo).filter(id=>cargo[id]>0);
+    if(!oreIds.length){ grid.innerHTML='<div class="inv-empty">⬡ CARGO HOLD EMPTY ⬡<br><br>Purchase extraction packages<br>at asteroid mine zones.</div>'; return; }
+    let html='';
+    for(const oreId of oreIds){ const ore=ORE_TABLE.find(o=>o.id===oreId); if(!ore) continue; html+=`<div class="inv-slot"><div class="is-icon">${ore.icon}</div><div class="is-name">${ore.name}</div><div class="is-qty" style="color:${ore.color};">${cargo[oreId]}</div><div class="is-unit">UNITS</div></div>`; }
+    grid.innerHTML=html;
 }
 function updateShopDisplay(){
-    document.getElementById('shopFuelDisplay').textContent    = Math.round(ship.fuel);
-    document.getElementById('shopEnergyDisplay').textContent  = Math.round(ship.energy);
-    document.getElementById('shopCreditsDisplay').textContent = credits;
+    document.getElementById('shopFuelDisplay').textContent=Math.round(ship.fuel);
+    document.getElementById('shopEnergyDisplay').textContent=Math.round(ship.energy);
+    document.getElementById('shopCreditsDisplay').textContent=credits;
 }
-function showNotification(message, duration=2000){
-    const notif = document.getElementById('notification');
-    notif.textContent = message;
-    notif.style.display = 'block';
-    clearTimeout(notif._t);
-    notif._t = setTimeout(()=>{ notif.style.display='none'; }, duration);
+function showNotification(message,duration=2000){
+    const notif=document.getElementById('notification'); notif.textContent=message; notif.style.display='block';
+    clearTimeout(notif._t); notif._t=setTimeout(()=>{ notif.style.display='none'; },duration);
 }
 function buyItem(itemId){
-    const planet = window._shopPlanet;
-    if(!planet){ showNotification('❌ No shop open!'); return; }
-    let item = null;
-    for(const sec of planet.inventory) item = sec.items.find(i=>i.id===itemId) || item;
-    if(!item){ showNotification('❌ Item not found!'); return; }
-    if(credits < item.cost){ showNotification('❌ Insufficient credits!'); return; }
-    if(item.fuelAdd   > 0 && ship.fuel   >= ship.maxFuel)  { showNotification('❌ Fuel tank already full!'); return; }
-    if(item.energyAdd > 0 && ship.energy >= ship.maxEnergy){ showNotification('❌ Energy already at maximum!'); return; }
-    if(item.hpAdd     > 0 && ship.hp     >= ship.maxHp)    { showNotification('❌ Hull already at full integrity!'); return; }
-    if(item.armorAdd  > 0 && ship.armor  >= ship.maxArmor) { showNotification('❌ Armor already at maximum!'); return; }
-    credits -= item.cost;
-    ship.fuel   = Math.min(ship.maxFuel,   ship.fuel   + item.fuelAdd);
-    ship.energy = Math.min(ship.maxEnergy, ship.energy + item.energyAdd);
-    ship.hp     = Math.min(ship.maxHp,     ship.hp     + item.hpAdd);
-    ship.armor  = Math.min(ship.maxArmor,  ship.armor  + item.armorAdd);
-    showNotification(`✅ Purchased: ${item.name}`);
-    updateShopDisplay();
-    updateHUD();
+    const planet=window._shopPlanet; if(!planet){showNotification('❌ No shop open!');return;}
+    let item=null; for(const sec of planet.inventory) item=sec.items.find(i=>i.id===itemId)||item;
+    if(!item){showNotification('❌ Item not found!');return;}
+    if(credits<item.cost){showNotification('❌ Insufficient credits!');return;}
+    if(item.fuelAdd>0&&ship.fuel>=ship.maxFuel){showNotification('❌ Fuel tank already full!');return;}
+    if(item.energyAdd>0&&ship.energy>=ship.maxEnergy){showNotification('❌ Energy already at maximum!');return;}
+    if(item.hpAdd>0&&ship.hp>=ship.maxHp){showNotification('❌ Hull already at full integrity!');return;}
+    if(item.armorAdd>0&&ship.armor>=ship.maxArmor){showNotification('❌ Armor already at maximum!');return;}
+    credits-=item.cost;
+    ship.fuel=Math.min(ship.maxFuel,ship.fuel+item.fuelAdd); ship.energy=Math.min(ship.maxEnergy,ship.energy+item.energyAdd);
+    ship.hp=Math.min(ship.maxHp,ship.hp+item.hpAdd); ship.armor=Math.min(ship.maxArmor,ship.armor+item.armorAdd);
+    showNotification(`✅ Purchased: ${item.name}`); updateShopDisplay(); updateHUD();
 }
 
 // =====================================================
 // SHOP TABS
 // =====================================================
-let currentShopTab = 'buy';
-
+let currentShopTab='buy';
 function switchShopTab(tab){
-    currentShopTab = tab;
-    const acc = window._shopPlanet ? (window._shopPlanet.shopAccent || '#FFD700') : '#FFD700';
-    document.querySelector('.shop-tabs').style.setProperty('--tab-accent', acc);
-
-    const panels = { buy:'buyPanel', sell:'sellPanel', upgrade:'upgradePanel' };
-    const tabs    = { buy:'tabBuy',  sell:'tabSell',   upgrade:'tabUpgrade'   };
-
-    for(const [key, panelId] of Object.entries(panels)){
-        document.getElementById(panelId).style.display = key === tab ? 'block' : 'none';
-    }
-    for(const [key, tabId] of Object.entries(tabs)){
-        const el = document.getElementById(tabId);
-        if(!el) continue;
-        if(key === tab) el.classList.add('active'); else el.classList.remove('active');
-    }
-
-    if(tab === 'sell')    buildSellUI();
-    if(tab === 'upgrade') buildUpgradeUI();
+    currentShopTab=tab;
+    const acc=window._shopPlanet?(window._shopPlanet.shopAccent||'#FFD700'):'#FFD700';
+    document.querySelector('.shop-tabs').style.setProperty('--tab-accent',acc);
+    const panels={buy:'buyPanel',sell:'sellPanel',upgrade:'upgradePanel'};
+    const tabs={buy:'tabBuy',sell:'tabSell',upgrade:'tabUpgrade'};
+    for(const[key,panelId]of Object.entries(panels)) document.getElementById(panelId).style.display=key===tab?'block':'none';
+    for(const[key,tabId]of Object.entries(tabs)){ const el=document.getElementById(tabId); if(!el)continue; if(key===tab)el.classList.add('active'); else el.classList.remove('active'); }
+    if(tab==='sell') buildSellUI();
+    if(tab==='upgrade') buildUpgradeUI();
 }
 
 // =====================================================
 // UPGRADES
 // =====================================================
-const MAX_UPGRADE_TIER = 5;
-const UPGRADE_CAPACITY_PER_TIER = 25;
-
+const MAX_UPGRADE_TIER=5, UPGRADE_CAPACITY_PER_TIER=25;
 function buildUpgradeUI(){
-    document.getElementById('upgradeCreditsDisplay').textContent = credits + ' ¢';
-    let html = '';
+    document.getElementById('upgradeCreditsDisplay').textContent=credits+' ¢';
+    let html='';
     for(const def of UPGRADE_DEFS){
-        const tier    = shipUpgrades[def.stat];
-        const maxed   = tier >= MAX_UPGRADE_TIER;
-        const curMax  = ship[def.maxKey];
-        const nextMax = maxed ? curMax : curMax + UPGRADE_CAPACITY_PER_TIER;
-        const cost    = maxed ? 0 : def.costs[tier];
-        const canAfford = credits >= cost;
-
-        // Pip bar — filled pips = current tier
-        let pipsHtml = '';
-        for(let i = 0; i < MAX_UPGRADE_TIER; i++){
-            pipsHtml += `<div class="upgrade-pip${i < tier ? ' filled' : ''}"></div>`;
-        }
-
-        const tierLabel = maxed ? 'MAX' : `TIER ${tier}/${MAX_UPGRADE_TIER}`;
-        const tierColor = maxed ? '#00ff88' : (tier > 0 ? '#4af' : '#334455');
-
-        html += `
-        <div class="upgrade-card${maxed ? ' maxed' : ''}">
-            <div class="upgrade-header">
-                <div class="upgrade-name">
-                    <span style="color:${def.color};">${def.icon}</span>
-                    ${def.label}
-                </div>
-                <div class="upgrade-tier-badge" style="background:${tierColor}22;color:${tierColor};border:1px solid ${tierColor}55;">
-                    ${tierLabel}
-                </div>
-            </div>
-            <div style="color:#445566;font-size:11px;margin-bottom:10px;">${def.desc}</div>
-            <div class="upgrade-tier-pips">${pipsHtml}</div>
-            <div class="upgrade-stat-row">
-                <div class="upgrade-current">CURRENT MAX <span style="color:${def.color};">${curMax}</span></div>
-                ${!maxed ? `<div class="upgrade-arrow">→</div>
-                <div class="upgrade-next">AFTER UPGRADE <span>+${UPGRADE_CAPACITY_PER_TIER} → ${nextMax}</span></div>` : ''}
-            </div>
-            <div class="upgrade-footer">
-                ${maxed
-                    ? `<span class="upgrade-maxed-label">✔ FULLY UPGRADED</span>`
-                    : `<div class="upgrade-cost" style="color:${canAfford?'#FFD700':'#664400'};">${cost} ¢</div>
-                       <button class="upgradeButton${canAfford?'':' maxed-btn'}"
-                               style="${canAfford?'':'border-color:#223333;color:#334444;'}"
-                               onclick="purchaseUpgrade('${def.stat}')">
-                           ${canAfford ? '⬆ UPGRADE' : '✖ NEED CREDITS'}
-                       </button>`
-                }
-            </div>
-        </div>`;
+        const tier=shipUpgrades[def.stat],maxed=tier>=MAX_UPGRADE_TIER,curMax=ship[def.maxKey];
+        const nextMax=maxed?curMax:curMax+UPGRADE_CAPACITY_PER_TIER,cost=maxed?0:def.costs[tier],canAfford=credits>=cost;
+        let pipsHtml='';
+        for(let i=0;i<MAX_UPGRADE_TIER;i++) pipsHtml+=`<div class="upgrade-pip${i<tier?' filled':''}"></div>`;
+        const tierLabel=maxed?'MAX':`TIER ${tier}/${MAX_UPGRADE_TIER}`,tierColor=maxed?'#00ff88':(tier>0?'#4af':'#334455');
+        html+=`<div class="upgrade-card${maxed?' maxed':''}"><div class="upgrade-header"><div class="upgrade-name"><span style="color:${def.color};">${def.icon}</span>${def.label}</div><div class="upgrade-tier-badge" style="background:${tierColor}22;color:${tierColor};border:1px solid ${tierColor}55;">${tierLabel}</div></div><div style="color:#445566;font-size:11px;margin-bottom:10px;">${def.desc}</div><div class="upgrade-tier-pips">${pipsHtml}</div><div class="upgrade-stat-row"><div class="upgrade-current">CURRENT MAX <span style="color:${def.color};">${curMax}</span></div>${!maxed?`<div class="upgrade-arrow">→</div><div class="upgrade-next">AFTER UPGRADE <span>+${UPGRADE_CAPACITY_PER_TIER} → ${nextMax}</span></div>`:''}</div><div class="upgrade-footer">${maxed?`<span class="upgrade-maxed-label">✔ FULLY UPGRADED</span>`:`<div class="upgrade-cost" style="color:${canAfford?'#FFD700':'#664400'};">${cost} ¢</div><button class="upgradeButton${canAfford?'':' maxed-btn'}" style="${canAfford?'':'border-color:#223333;color:#334444;'}" onclick="purchaseUpgrade('${def.stat}')">${canAfford?'⬆ UPGRADE':'✖ NEED CREDITS'}</button>`}</div></div>`;
     }
-    document.getElementById('upgradeCards').innerHTML = html;
+    document.getElementById('upgradeCards').innerHTML=html;
 }
-
 function purchaseUpgrade(stat){
-    const def  = UPGRADE_DEFS.find(d => d.stat === stat);
-    if(!def) return;
-    const tier = shipUpgrades[stat];
-    if(tier >= MAX_UPGRADE_TIER){ showNotification('✔ Already fully upgraded!'); return; }
-    const cost = def.costs[tier];
-    if(credits < cost){ showNotification(`❌ Need ${cost} ¢ — not enough credits!`); return; }
-
-    credits -= cost;
-    shipUpgrades[stat]++;
-    ship[def.maxKey] += UPGRADE_CAPACITY_PER_TIER;
-
-    // Also top up the current stat to the new max as a bonus
-    ship[stat] = Math.min(ship[stat] + UPGRADE_CAPACITY_PER_TIER, ship[def.maxKey]);
-
-    const newTier = shipUpgrades[stat];
-    const label = newTier >= MAX_UPGRADE_TIER ? 'MAXED OUT' : `Tier ${newTier}`;
+    const def=UPGRADE_DEFS.find(d=>d.stat===stat); if(!def) return;
+    const tier=shipUpgrades[stat]; if(tier>=MAX_UPGRADE_TIER){showNotification('✔ Already fully upgraded!');return;}
+    const cost=def.costs[tier]; if(credits<cost){showNotification(`❌ Need ${cost} ¢ — not enough credits!`);return;}
+    credits-=cost; shipUpgrades[stat]++; ship[def.maxKey]+=UPGRADE_CAPACITY_PER_TIER;
+    ship[stat]=Math.min(ship[stat]+UPGRADE_CAPACITY_PER_TIER,ship[def.maxKey]);
+    const newTier=shipUpgrades[stat],label=newTier>=MAX_UPGRADE_TIER?'MAXED OUT':`Tier ${newTier}`;
     showNotification(`⬆ ${def.label} upgraded! [${label}] — Max now ${ship[def.maxKey]}`);
-
-    updateHUD();
-    buildUpgradeUI(); // refresh cards
+    updateHUD(); buildUpgradeUI();
 }
 
 // =====================================================
-// SELL CARGO
+// SELL
 // =====================================================
-function calcCargoTotalValue(){
-    let total = 0;
-    for(const oreId of Object.keys(cargo)){
-        if(cargo[oreId] <= 0) continue;
-        const ore = ORE_TABLE.find(o => o.id === oreId);
-        if(ore) total += ore.sellPrice * cargo[oreId];
-    }
-    return total;
-}
-
+function calcCargoTotalValue(){ let total=0; for(const oreId of Object.keys(cargo)){ if(cargo[oreId]<=0) continue; const ore=ORE_TABLE.find(o=>o.id===oreId); if(ore) total+=ore.sellPrice*cargo[oreId]; } return total; }
 function buildSellUI(){
-    const grid = document.getElementById('sellInventory');
-    const acc  = window._shopPlanet ? (window._shopPlanet.shopAccent || '#FFD700') : '#FFD700';
-    const oreIds = Object.keys(cargo).filter(id => cargo[id] > 0);
-
-    document.getElementById('sellTotalValue').textContent = calcCargoTotalValue() + ' ¢';
-
-    if(oreIds.length === 0){
-        grid.innerHTML = '<div class="sell-empty">⬡ CARGO HOLD IS EMPTY ⬡<br><br>Mine asteroids to collect ores<br>then return here to sell them.</div>';
-        return;
-    }
-    let html = '';
-    for(const oreId of oreIds){
-        const ore = ORE_TABLE.find(o => o.id === oreId);
-        if(!ore) continue;
-        const qty      = cargo[oreId];
-        const unitVal  = ore.sellPrice;
-        const totalVal = unitVal * qty;
-        html += `
-        <div class="sell-item" id="sell-row-${oreId}">
-            <div class="sell-item-info">
-                <div class="sell-item-name">${ore.icon} ${ore.name}</div>
-                <div class="sell-item-qty" style="color:${ore.color};">${qty} units · <span style="color:#556677;">${unitVal} ¢ / unit</span></div>
-            </div>
-            <div class="sell-item-price" style="color:${acc};">
-                ${totalVal} ¢
-                <small>TOTAL</small>
-            </div>
-            <button class="sellButton" style="border-color:${acc};color:${acc};" onclick="sellOre('${oreId}')">SELL ALL</button>
-        </div>`;
-    }
-    grid.innerHTML = html;
+    const grid=document.getElementById('sellInventory'),acc=window._shopPlanet?(window._shopPlanet.shopAccent||'#FFD700'):'#FFD700';
+    const oreIds=Object.keys(cargo).filter(id=>cargo[id]>0);
+    document.getElementById('sellTotalValue').textContent=calcCargoTotalValue()+' ¢';
+    if(!oreIds.length){ grid.innerHTML='<div class="sell-empty">⬡ CARGO HOLD IS EMPTY ⬡<br><br>Mine asteroids to collect ores<br>then return here to sell them.</div>'; return; }
+    let html='';
+    for(const oreId of oreIds){ const ore=ORE_TABLE.find(o=>o.id===oreId); if(!ore) continue; const qty=cargo[oreId],unitVal=ore.sellPrice,totalVal=unitVal*qty; html+=`<div class="sell-item" id="sell-row-${oreId}"><div class="sell-item-info"><div class="sell-item-name">${ore.icon} ${ore.name}</div><div class="sell-item-qty" style="color:${ore.color};">${qty} units · <span style="color:#556677;">${unitVal} ¢ / unit</span></div></div><div class="sell-item-price" style="color:${acc};">${totalVal} ¢<small>TOTAL</small></div><button class="sellButton" style="border-color:${acc};color:${acc};" onclick="sellOre('${oreId}')">SELL ALL</button></div>`; }
+    grid.innerHTML=html;
 }
-
-function sellOre(oreId){
-    const ore = ORE_TABLE.find(o => o.id === oreId);
-    if(!ore || !cargo[oreId] || cargo[oreId] <= 0){
-        showNotification('❌ Nothing to sell!'); return;
-    }
-    const qty    = cargo[oreId];
-    const earned = ore.sellPrice * qty;
-    credits += earned;
-    cargo[oreId] = 0;
-    showNotification(`✅ Sold ${qty}x ${ore.name} for ${earned} ¢`);
-    updateShopDisplay();
-    updateHUD();
-    buildSellUI(); // refresh sell panel
-}
-
-function sellAllOre(){
-    const total = calcCargoTotalValue();
-    if(total <= 0){ showNotification('❌ Cargo hold is empty!'); return; }
-    for(const oreId of Object.keys(cargo)){
-        cargo[oreId] = 0;
-    }
-    credits += total;
-    showNotification(`✅ Sold all cargo for ${total} ¢`);
-    updateShopDisplay();
-    updateHUD();
-    buildSellUI();
-}
-
+function sellOre(oreId){ const ore=ORE_TABLE.find(o=>o.id===oreId); if(!ore||!cargo[oreId]||cargo[oreId]<=0){showNotification('❌ Nothing to sell!');return;} const qty=cargo[oreId],earned=ore.sellPrice*qty; credits+=earned; cargo[oreId]=0; showNotification(`✅ Sold ${qty}x ${ore.name} for ${earned} ¢`); updateShopDisplay(); updateHUD(); buildSellUI(); }
+function sellAllOre(){ const total=calcCargoTotalValue(); if(total<=0){showNotification('❌ Cargo hold is empty!');return;} for(const oreId of Object.keys(cargo)) cargo[oreId]=0; credits+=total; showNotification(`✅ Sold all cargo for ${total} ¢`); updateShopDisplay(); updateHUD(); buildSellUI(); }
 
 function updateHUD(){
-    document.getElementById("hp").style.width    = Math.max(0, ship.hp    / ship.maxHp    * 100) + "%";
-    document.getElementById("armor").style.width = Math.max(0, ship.armor / ship.maxArmor * 100) + "%";
-    document.getElementById("fuel").style.width  = Math.max(0, ship.fuel  / ship.maxFuel  * 100) + "%";
-    document.getElementById("energy").style.width= Math.max(0, ship.energy/ ship.maxEnergy* 100) + "%";
-    document.getElementById("creditsAmount").textContent = credits;
+    document.getElementById("hp").style.width=Math.max(0,ship.hp/ship.maxHp*100)+"%";
+    document.getElementById("armor").style.width=Math.max(0,ship.armor/ship.maxArmor*100)+"%";
+    document.getElementById("fuel").style.width=Math.max(0,ship.fuel/ship.maxFuel*100)+"%";
+    document.getElementById("energy").style.width=Math.max(0,ship.energy/ship.maxEnergy*100)+"%";
+    document.getElementById("creditsAmount").textContent=credits;
 }
 
 // =====================================================
@@ -1501,773 +1197,232 @@ function updateHUD(){
 // =====================================================
 function updateShip(){
     if(shopOpen) return;
-    if(ship.invincibleFrames > 0) ship.invincibleFrames--;
-
-    ship.boosting = keys["shift"];
-    const currentThrust   = ship.boosting ? ship.thrust * ship.boostMultiplier : ship.thrust;
-    const currentMaxSpeed = ship.boosting ? ship.boostMaxSpeed : ship.maxSpeed;
-
-    const usingThrust = keys["w"] || Math.abs(joystick.x) > 0.1;
-    if(usingThrust && ship.fuel > 0) ship.fuel -= 0.05;
-    if(ship.boosting && ship.energy > 0) ship.energy -= 0.2;
-    else ship.energy += 0.1;
-    ship.energy = Math.max(0, Math.min(ship.maxEnergy, ship.energy));
-    ship.fuel   = Math.max(0, ship.fuel);
-
-    if(keys["a"]) ship.targetAngle -= 0.08;
-    if(keys["d"]) ship.targetAngle += 0.08;
-
-    const joystickActive = Math.abs(joystick.x) > 0.1 || Math.abs(joystick.y) > 0.1;
-    let thrusting = false;
-    if(joystickActive && ship.fuel > 0){
-        const ang = Math.atan2(joystick.y, joystick.x);
-        ship.targetAngle = ang;
-        const power = Math.min(1, Math.sqrt(joystick.x**2 + joystick.y**2));
-        if(power > 0.2){
-            thrusting = true;
-            ship.velocityX += Math.cos(ship.angle) * currentThrust * power;
-            ship.velocityY += Math.sin(ship.angle) * currentThrust * power;
-        }
+    if(ship.invincibleFrames>0) ship.invincibleFrames--;
+    ship.boosting=keys["shift"];
+    const currentThrust=ship.boosting?ship.thrust*ship.boostMultiplier:ship.thrust;
+    const currentMaxSpeed=ship.boosting?ship.boostMaxSpeed:ship.maxSpeed;
+    const usingThrust=keys["w"]||Math.abs(joystick.x)>0.1;
+    if(usingThrust&&ship.fuel>0) ship.fuel-=0.05;
+    if(ship.boosting&&ship.energy>0) ship.energy-=0.2;
+    else ship.energy+=0.1;
+    ship.energy=Math.max(0,Math.min(ship.maxEnergy,ship.energy));
+    ship.fuel=Math.max(0,ship.fuel);
+    if(keys["a"]) ship.targetAngle-=0.08;
+    if(keys["d"]) ship.targetAngle+=0.08;
+    const joystickActive=Math.abs(joystick.x)>0.1||Math.abs(joystick.y)>0.1;
+    let thrusting=false;
+    if(joystickActive&&ship.fuel>0){
+        const ang=Math.atan2(joystick.y,joystick.x); ship.targetAngle=ang;
+        const power=Math.min(1,Math.sqrt(joystick.x**2+joystick.y**2));
+        if(power>0.2){ thrusting=true; ship.velocityX+=Math.cos(ship.angle)*currentThrust*power; ship.velocityY+=Math.sin(ship.angle)*currentThrust*power; }
     }
-    if(keys["w"] && ship.fuel > 0){
-        thrusting = true;
-        ship.velocityX += Math.cos(ship.angle) * currentThrust;
-        ship.velocityY += Math.sin(ship.angle) * currentThrust;
-    }
-    if(keys["s"]){ ship.velocityX *= 0.95; ship.velocityY *= 0.95; }
-
-    let angleDiff = ship.targetAngle - ship.angle;
-    angleDiff = Math.atan2(Math.sin(angleDiff), Math.cos(angleDiff));
-    ship.angle += angleDiff * 0.15;
-
-    const spd = Math.sqrt(ship.velocityX**2 + ship.velocityY**2);
-    if(spd > currentMaxSpeed){
-        ship.velocityX *= currentMaxSpeed / spd;
-        ship.velocityY *= currentMaxSpeed / spd;
-    }
-    ship.velocityX *= ship.friction;
-    ship.velocityY *= ship.friction;
-    ship.x += ship.velocityX;
-    ship.y += ship.velocityY;
-    ship.thrusting = thrusting;
-
-    updateThruster();
-    updateHUD();
-    updateProximityAlert();
+    if(keys["w"]&&ship.fuel>0){ thrusting=true; ship.velocityX+=Math.cos(ship.angle)*currentThrust; ship.velocityY+=Math.sin(ship.angle)*currentThrust; }
+    if(keys["s"]){ ship.velocityX*=0.95; ship.velocityY*=0.95; }
+    let angleDiff=ship.targetAngle-ship.angle; angleDiff=Math.atan2(Math.sin(angleDiff),Math.cos(angleDiff)); ship.angle+=angleDiff*0.15;
+    const spd=Math.sqrt(ship.velocityX**2+ship.velocityY**2);
+    if(spd>currentMaxSpeed){ ship.velocityX*=currentMaxSpeed/spd; ship.velocityY*=currentMaxSpeed/spd; }
+    ship.velocityX*=ship.friction; ship.velocityY*=ship.friction;
+    ship.x+=ship.velocityX; ship.y+=ship.velocityY; ship.thrusting=thrusting;
+    updateThruster(); updateHUD(); updateProximityAlert();
 }
-
-// =====================================================
-// THRUSTER UPDATE
-// =====================================================
 function updateThruster(){
-    thruster.targetRotation = ship.angle;
-    let td = thruster.targetRotation - thruster.rotation;
-    td = Math.atan2(Math.sin(td), Math.cos(td));
-    thruster.rotation += td * 0.08;
-    thruster.targetScaleX = ship.thrusting ? (ship.boosting ? 2.8 : 1.5) : 0;
-    thruster.scaleX += (thruster.targetScaleX - thruster.scaleX) * 0.15;
-    if(ship.boosting) thruster.scaleX += Math.sin(performance.now() * 0.03) * 0.08;
+    thruster.targetRotation=ship.angle;
+    let td=thruster.targetRotation-thruster.rotation; td=Math.atan2(Math.sin(td),Math.cos(td)); thruster.rotation+=td*0.08;
+    thruster.targetScaleX=ship.thrusting?(ship.boosting?2.8:1.5):0;
+    thruster.scaleX+=(thruster.targetScaleX-thruster.scaleX)*0.15;
+    if(ship.boosting) thruster.scaleX+=Math.sin(performance.now()*0.03)*0.08;
 }
 
 // =====================================================
-// DRAW — stars
+// DRAW
 // =====================================================
 function drawStars(){
-    ctx.fillStyle = "white";
+    ctx.fillStyle="white";
     for(const s of stars){
-        const sx = s.x - camera.x * 0.2 * s.depth + canvas.width/2;
-        const sy = s.y - camera.y * 0.2 * s.depth + canvas.height/2;
-        const wx = ((sx % canvas.width)  + canvas.width)  % canvas.width;
-        const wy = ((sy % canvas.height) + canvas.height) % canvas.height;
-        ctx.fillRect(wx, wy, s.size, s.size);
+        const sx=s.x-camera.x*0.2*s.depth+canvas.width/2,sy=s.y-camera.y*0.2*s.depth+canvas.height/2;
+        const wx=((sx%canvas.width)+canvas.width)%canvas.width,wy=((sy%canvas.height)+canvas.height)%canvas.height;
+        ctx.fillRect(wx,wy,s.size,s.size);
     }
 }
-
-// =====================================================
-// DRAW — planet body
-// =====================================================
 function drawPlanetBody(p){
-    const ps = getPlanetScreenPos(p);
-    const px = ps.x, py = ps.y;
-    const inDock = isInDockZone(p);
-    const isGreen = p.theme === 'green';
-
-    ctx.strokeStyle = inDock
-        ? (isGreen ? "rgba(0,255,100,0.3)" : "rgba(0,255,0,0.25)")
-        : (isGreen ? "rgba(0,200,80,0.15)"  : "rgba(0,150,255,0.15)");
-    ctx.lineWidth = 1; ctx.setLineDash([6,8]);
-    ctx.beginPath(); ctx.arc(px, py, p.radius + DOCK_BUFFER, 0, Math.PI*2); ctx.stroke();
-    ctx.setLineDash([]);
-
-    if(inDock){ ctx.shadowBlur = 40; ctx.shadowColor = isGreen ? "#00ff66" : "#00ff00"; }
-
-    if(isGreen){
-        const grad = ctx.createRadialGradient(px - p.radius*0.3, py - p.radius*0.3, 0, px, py, p.radius);
-        grad.addColorStop(0, "#4fff90"); grad.addColorStop(0.55, "#00aa44"); grad.addColorStop(1, "#003318");
-        ctx.fillStyle = grad;
-    } else {
-        ctx.fillStyle = "#2266ff";
-    }
-    ctx.beginPath(); ctx.arc(px, py, p.radius, 0, Math.PI*2); ctx.fill();
-    ctx.shadowBlur = 0;
-
-    ctx.fillStyle = isGreen ? "rgba(150,255,180,0.7)" : "rgba(150,200,255,0.7)";
-    ctx.font = "11px 'Courier New'"; ctx.textAlign = "center";
-    ctx.fillText(p.name, px, py + p.radius + 16); ctx.textAlign = "left";
-
-    if(inDock){
-        ctx.strokeStyle = isGreen ? "#00ff66" : "#00ff00";
-        ctx.lineWidth = 3; ctx.setLineDash([10,5]);
-        ctx.beginPath(); ctx.arc(px, py, p.radius + DOCK_BUFFER, 0, Math.PI*2); ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.strokeStyle = isGreen ? "rgba(0,255,150,0.3)" : "rgba(255,255,0,0.3)";
-        ctx.lineWidth = 1; ctx.setLineDash([4,6]);
-        ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(canvas.width/2, canvas.height/2); ctx.stroke();
-        ctx.setLineDash([]);
-    }
+    const ps=getPlanetScreenPos(p),px=ps.x,py=ps.y,inDock=isInDockZone(p),isGreen=p.theme==='green';
+    ctx.strokeStyle=inDock?(isGreen?"rgba(0,255,100,0.3)":"rgba(0,255,0,0.25)"):(isGreen?"rgba(0,200,80,0.15)":"rgba(0,150,255,0.15)");
+    ctx.lineWidth=1; ctx.setLineDash([6,8]); ctx.beginPath(); ctx.arc(px,py,p.radius+DOCK_BUFFER,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+    if(inDock){ctx.shadowBlur=40;ctx.shadowColor=isGreen?"#00ff66":"#00ff00";}
+    if(isGreen){const grad=ctx.createRadialGradient(px-p.radius*0.3,py-p.radius*0.3,0,px,py,p.radius);grad.addColorStop(0,"#4fff90");grad.addColorStop(0.55,"#00aa44");grad.addColorStop(1,"#003318");ctx.fillStyle=grad;}
+    else ctx.fillStyle="#2266ff";
+    ctx.beginPath();ctx.arc(px,py,p.radius,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+    ctx.fillStyle=isGreen?"rgba(150,255,180,0.7)":"rgba(150,200,255,0.7)";ctx.font="11px 'Courier New'";ctx.textAlign="center";ctx.fillText(p.name,px,py+p.radius+16);ctx.textAlign="left";
+    if(inDock){ctx.strokeStyle=isGreen?"#00ff66":"#00ff00";ctx.lineWidth=3;ctx.setLineDash([10,5]);ctx.beginPath();ctx.arc(px,py,p.radius+DOCK_BUFFER,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.strokeStyle=isGreen?"rgba(0,255,150,0.3)":"rgba(255,255,0,0.3)";ctx.lineWidth=1;ctx.setLineDash([4,6]);ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(canvas.width/2,canvas.height/2);ctx.stroke();ctx.setLineDash([]);}
 }
-
-// =====================================================
-// DRAW — thruster & ship
-// =====================================================
 function drawThruster(){
-    if(thruster.scaleX <= 0.01) return;
-    ctx.save();
-    ctx.translate(-20, 0);
-    ctx.rotate(thruster.rotation - ship.angle);
-    ctx.scale(thruster.scaleX, thruster.scaleY);
-    ctx.shadowBlur = ship.boosting ? 30 : 10;
-    ctx.shadowColor = ship.boosting ? "#00ccff" : "cyan";
-    const gradient = ctx.createLinearGradient(-30,0,0,0);
-    gradient.addColorStop(0, "rgba(0,255,255,0)");
-    gradient.addColorStop(1, "rgba(0,255,255,1)");
-    ctx.fillStyle = gradient;
-    ctx.beginPath(); ctx.moveTo(0,-8); ctx.lineTo(-30,0); ctx.lineTo(0,8); ctx.fill();
-    ctx.restore(); ctx.shadowBlur = 0;
+    if(thruster.scaleX<=0.01) return;
+    ctx.save();ctx.translate(-20,0);ctx.rotate(thruster.rotation-ship.angle);ctx.scale(thruster.scaleX,thruster.scaleY);
+    ctx.shadowBlur=ship.boosting?30:10;ctx.shadowColor=ship.boosting?"#00ccff":"cyan";
+    const gradient=ctx.createLinearGradient(-30,0,0,0);gradient.addColorStop(0,"rgba(0,255,255,0)");gradient.addColorStop(1,"rgba(0,255,255,1)");ctx.fillStyle=gradient;
+    ctx.beginPath();ctx.moveTo(0,-8);ctx.lineTo(-30,0);ctx.lineTo(0,8);ctx.fill();ctx.restore();ctx.shadowBlur=0;
 }
 function drawShip(){
-    ctx.save();
-    ctx.translate(canvas.width/2, canvas.height/2);
-    ctx.rotate(ship.angle);
-    drawThruster();
-    ctx.fillStyle = "gold";
-    ctx.fillRect(-20,-20,40,40);
-    ctx.fillStyle = "#222";
-    ctx.fillRect(5,-8,10,16);
-    ctx.restore();
+    ctx.save();ctx.translate(canvas.width/2,canvas.height/2);ctx.rotate(ship.angle);drawThruster();
+    ctx.fillStyle="gold";ctx.fillRect(-20,-20,40,40);ctx.fillStyle="#222";ctx.fillRect(5,-8,10,16);ctx.restore();
 }
 
 // =====================================================
 // ASTEROIDS
 // =====================================================
-
-// Three size tiers — small, medium, large
-const ASTEROID_TIERS = [
-    { label:'small',  rMin:8,  rMax:14, speedMin:0.4, speedMax:0.9,  armorDmg:6,  hpDmg:3,  color:'#b09070' },
-    { label:'medium', rMin:16, rMax:28, speedMin:0.2, speedMax:0.55, armorDmg:14, hpDmg:9,  color:'#907055' },
-    { label:'large',  rMin:30, rMax:46, speedMin:0.08,speedMax:0.3,  armorDmg:24, hpDmg:18, color:'#6e5038' },
+const ASTEROID_TIERS=[
+    {label:'small', rMin:8, rMax:14,speedMin:0.4, speedMax:0.9, armorDmg:6, hpDmg:3, color:'#b09070'},
+    {label:'medium',rMin:16,rMax:28,speedMin:0.2, speedMax:0.55,armorDmg:14,hpDmg:9, color:'#907055'},
+    {label:'large', rMin:30,rMax:46,speedMin:0.08,speedMax:0.3, armorDmg:24,hpDmg:18,color:'#6e5038'},
 ];
-
-const ASTEROIDS_PER_PLANET = 3;  // exactly 3 per planet
-const ORBIT_RADIUS_MIN     = 300;
-const ORBIT_RADIUS_MAX     = 550;
-const ASTEROID_DEPTH       = 0.5; // mid-ground parallax (deeper than ship, shallower than planets)
-
-// Deterministic pseudo-random — ensures rock shapes are stable
-function seededRand(seed){
-    let s = seed | 0;
-    return () => {
-        s = (Math.imul(s, 1664525) + 1013904223) | 0;
-        return (s >>> 0) / 4294967296;
-    };
-}
-
-function buildAsteroidShape(radius, rng){
-    const vertCount = 8 + Math.floor(rng() * 5); // 8–12 vertices
-    const shape = [];
-    for(let v = 0; v < vertCount; v++){
-        const a = (v / vertCount) * Math.PI * 2;
-        const r = radius * (0.62 + rng() * 0.38);
-        shape.push({ a, r });
-    }
-    return shape;
-}
-
-const asteroids = [];
-
+const ASTEROIDS_PER_PLANET=3,ORBIT_RADIUS_MIN=300,ORBIT_RADIUS_MAX=550,ASTEROID_DEPTH=0.5;
+function seededRand(seed){ let s=seed|0; return()=>{ s=(Math.imul(s,1664525)+1013904223)|0; return(s>>>0)/4294967296; }; }
+function buildAsteroidShape(radius,rng){ const vertCount=8+Math.floor(rng()*5),shape=[]; for(let v=0;v<vertCount;v++){const a=(v/vertCount)*Math.PI*2,r=radius*(0.62+rng()*0.38);shape.push({a,r});} return shape; }
+const asteroids=[];
 function spawnAsteroidsForPlanet(planet){
-    for(let i = 0; i < ASTEROIDS_PER_PLANET; i++){
-        // Distribute tiers: one of each size per planet cluster
-        const tier = ASTEROID_TIERS[i % ASTEROID_TIERS.length];
-
-        // Spread evenly around planet + some randomness
-        const baseAngle  = (i / ASTEROIDS_PER_PLANET) * Math.PI * 2;
-        const jitter     = (Math.random() - 0.5) * (Math.PI / 3);
-        const orbitAngle = baseAngle + jitter;
-        const orbitDist  = ORBIT_RADIUS_MIN + Math.random() * (ORBIT_RADIUS_MAX - ORBIT_RADIUS_MIN);
-
-        const wx = planet.x + Math.cos(orbitAngle) * orbitDist;
-        const wy = planet.y + Math.sin(orbitAngle) * orbitDist;
-
-        const speed      = tier.speedMin + Math.random() * (tier.speedMax - tier.speedMin);
-        const driftAngle = Math.random() * Math.PI * 2;
-
-        const radius = tier.rMin + Math.random() * (tier.rMax - tier.rMin);
-        const seed   = Math.floor(Math.random() * 999999);
-        const rng    = seededRand(seed);
-
-        asteroids.push({
-            x: wx, y: wy,
-            vx: Math.cos(driftAngle) * speed,
-            vy: Math.sin(driftAngle) * speed,
-            radius,
-            depth: ASTEROID_DEPTH,
-            rotation: Math.random() * Math.PI * 2,
-            rotSpeed: (Math.random() - 0.5) * 0.018,
-            tier,
-            shape: buildAsteroidShape(radius, rng),
-            hitCooldown: 0,
-            planetId: planet.id,
-        });
+    for(let i=0;i<ASTEROIDS_PER_PLANET;i++){
+        const tier=ASTEROID_TIERS[i%ASTEROID_TIERS.length];
+        const baseAngle=(i/ASTEROIDS_PER_PLANET)*Math.PI*2,jitter=(Math.random()-0.5)*(Math.PI/3),orbitAngle=baseAngle+jitter;
+        const orbitDist=ORBIT_RADIUS_MIN+Math.random()*(ORBIT_RADIUS_MAX-ORBIT_RADIUS_MIN);
+        const wx=planet.x+Math.cos(orbitAngle)*orbitDist,wy=planet.y+Math.sin(orbitAngle)*orbitDist;
+        const speed=tier.speedMin+Math.random()*(tier.speedMax-tier.speedMin),driftAngle=Math.random()*Math.PI*2;
+        const radius=tier.rMin+Math.random()*(tier.rMax-tier.rMin),seed=Math.floor(Math.random()*999999),rng=seededRand(seed);
+        asteroids.push({x:wx,y:wy,vx:Math.cos(driftAngle)*speed,vy:Math.sin(driftAngle)*speed,radius,depth:ASTEROID_DEPTH,rotation:Math.random()*Math.PI*2,rotSpeed:(Math.random()-0.5)*0.018,tier,shape:buildAsteroidShape(radius,rng),hitCooldown:0,planetId:planet.id});
     }
 }
-
-// Spawn clusters around each planet
 for(const p of planets) spawnAsteroidsForPlanet(p);
 
-// Screen position (same parallax formula used by planets)
-function getAsteroidScreenPos(a){
-    return {
-        x: a.x - camera.x * a.depth + canvas.width/2,
-        y: a.y - camera.y * a.depth + canvas.height/2
-    };
-}
-function getDistanceToAsteroid(a){
-    const as = getAsteroidScreenPos(a);
-    const ss = getShipScreenPos();
-    const dx = ss.x - as.x, dy = ss.y - as.y;
-    return Math.sqrt(dx*dx + dy*dy);
-}
-function isInAsteroidDockZone(a){
-    return getDistanceToAsteroid(a) < a.radius + ASTEROID_DOCK_BUFFER;
-}
-function getNearestScannableAsteroid(){
-    let nearest = null, nearestDist = Infinity;
-    for(const a of asteroids){
-        const d = getDistanceToAsteroid(a);
-        if(d < ASTEROID_SCAN_RADIUS && d < nearestDist){ nearestDist = d; nearest = a; }
-    }
-    return nearest;
-}
-function getNearestDockableAsteroid(){
-    let nearest = null, nearestDist = Infinity;
-    for(const a of asteroids){
-        const d = getDistanceToAsteroid(a);
-        if(isInAsteroidDockZone(a) && d < nearestDist){ nearestDist = d; nearest = a; }
-    }
-    return nearest;
-}
+function getAsteroidScreenPos(a){ return{x:a.x-camera.x*a.depth+canvas.width/2,y:a.y-camera.y*a.depth+canvas.height/2}; }
+function getDistanceToAsteroid(a){ const as=getAsteroidScreenPos(a),ss=getShipScreenPos(),dx=ss.x-as.x,dy=ss.y-as.y; return Math.sqrt(dx*dx+dy*dy); }
+function isInAsteroidDockZone(a){ return getDistanceToAsteroid(a)<a.radius+ASTEROID_DOCK_BUFFER; }
+function getNearestScannableAsteroid(){ let n=null,nd=Infinity; for(const a of asteroids){ const d=getDistanceToAsteroid(a); if(d<ASTEROID_SCAN_RADIUS&&d<nd){nd=d;n=a;} } return n; }
+function getNearestDockableAsteroid(){ let n=null,nd=Infinity; for(const a of asteroids){ const d=getDistanceToAsteroid(a); if(isInAsteroidDockZone(a)&&d<nd){nd=d;n=a;} } return n; }
 
-// =====================================================
-// HIT FLASH
-// =====================================================
-const hitFlashEl = document.getElementById('hitFlash');
-let hitFlashFrames = 0;
-
-function triggerHitFlash(){
-    hitFlashEl.style.background = 'rgba(255,30,30,0.38)';
-    hitFlashFrames = 7;
-}
-
-// =====================================================
-// ASTEROID DAMAGE
-// =====================================================
+const hitFlashEl=document.getElementById('hitFlash');
+let hitFlashFrames=0;
+function triggerHitFlash(){ hitFlashEl.style.background='rgba(255,30,30,0.38)'; hitFlashFrames=7; }
 function applyAsteroidDamage(asteroid){
-    const t = asteroid.tier;
-
-    // Armor absorbs first; any overflow bleeds to HP
-    const armorAbsorb  = Math.min(ship.armor, t.armorDmg);
-    ship.armor        -= armorAbsorb;
-    const overflow     = t.armorDmg - armorAbsorb;
-    const totalHpLoss  = t.hpDmg + overflow;
-    ship.hp            = Math.max(0, ship.hp - totalHpLoss);
-
-    // Knockback — push ship away from asteroid in screen space
-    const as = getAsteroidScreenPos(asteroid);
-    const ss = getShipScreenPos();
-    const kbDx = ss.x - as.x, kbDy = ss.y - as.y;
-    const kbLen = Math.sqrt(kbDx*kbDx + kbDy*kbDy) || 1;
-    const kbStr = 4.0 + asteroid.radius * 0.07;
-    ship.velocityX += (kbDx / kbLen) * kbStr;
-    ship.velocityY += (kbDy / kbLen) * kbStr;
-
-    triggerHitFlash();
-    showNotification(`💥 ASTEROID IMPACT! -${Math.round(armorAbsorb)} Armor  -${Math.round(totalHpLoss)} HP`, 1600);
-
-    // Global ship iframes + per-asteroid cooldown
-    ship.invincibleFrames = ASTEROID_HIT_IFRAMES;
-    asteroid.hitCooldown  = ASTEROID_COOLDOWN;
-
-    updateHUD();
+    const t=asteroid.tier,armorAbsorb=Math.min(ship.armor,t.armorDmg); ship.armor-=armorAbsorb;
+    const overflow=t.armorDmg-armorAbsorb,totalHpLoss=t.hpDmg+overflow; ship.hp=Math.max(0,ship.hp-totalHpLoss);
+    const as=getAsteroidScreenPos(asteroid),ss=getShipScreenPos(),kbDx=ss.x-as.x,kbDy=ss.y-as.y,kbLen=Math.sqrt(kbDx*kbDx+kbDy*kbDy)||1,kbStr=4.0+asteroid.radius*0.07;
+    ship.velocityX+=(kbDx/kbLen)*kbStr; ship.velocityY+=(kbDy/kbLen)*kbStr;
+    triggerHitFlash(); showNotification(`💥 ASTEROID IMPACT! -${Math.round(armorAbsorb)} Armor  -${Math.round(totalHpLoss)} HP`,1600);
+    ship.invincibleFrames=ASTEROID_HIT_IFRAMES; asteroid.hitCooldown=ASTEROID_COOLDOWN; updateHUD();
 }
-
-// =====================================================
-// UPDATE ASTEROIDS
-// =====================================================
 function updateAsteroids(){
-    // Decay hit flash
-    if(hitFlashFrames > 0){
-        hitFlashFrames--;
-        if(hitFlashFrames === 0) hitFlashEl.style.background = 'rgba(255,30,30,0)';
-    }
-
+    if(hitFlashFrames>0){ hitFlashFrames--; if(hitFlashFrames===0) hitFlashEl.style.background='rgba(255,30,30,0)'; }
     for(const a of asteroids){
-        // Physics
-        a.x += a.vx;
-        a.y += a.vy;
-        a.rotation += a.rotSpeed;
-        if(a.hitCooldown > 0) a.hitCooldown--;
-
-        // Collision: screen-space circle vs circle
-        if(ship.invincibleFrames === 0 && a.hitCooldown === 0){
-            const as = getAsteroidScreenPos(a);
-            const ss = getShipScreenPos();
-            const colDx = ss.x - as.x, colDy = ss.y - as.y;
-            const colDist = Math.sqrt(colDx*colDx + colDy*colDy);
-            if(colDist < a.radius + SHIP_COLLISION_RADIUS){
-                applyAsteroidDamage(a);
-            }
+        a.x+=a.vx; a.y+=a.vy; a.rotation+=a.rotSpeed;
+        if(a.hitCooldown>0) a.hitCooldown--;
+        if(ship.invincibleFrames===0&&a.hitCooldown===0){
+            const as=getAsteroidScreenPos(a),ss=getShipScreenPos(),colDx=ss.x-as.x,colDy=ss.y-as.y,colDist=Math.sqrt(colDx*colDx+colDy*colDy);
+            if(colDist<a.radius+SHIP_COLLISION_RADIUS) applyAsteroidDamage(a);
         }
     }
 }
-
-// =====================================================
-// DRAW ASTEROIDS
-// =====================================================
-function lightenHex(hex, amt){
-    const r = Math.min(255, parseInt(hex.slice(1,3),16) + amt);
-    const g = Math.min(255, parseInt(hex.slice(3,5),16) + amt);
-    const b = Math.min(255, parseInt(hex.slice(5,7),16) + amt);
-    return `rgb(${r},${g},${b})`;
-}
-function darkenHex(hex, amt){
-    const r = Math.max(0, parseInt(hex.slice(1,3),16) - amt);
-    const g = Math.max(0, parseInt(hex.slice(3,5),16) - amt);
-    const b = Math.max(0, parseInt(hex.slice(5,7),16) - amt);
-    return `rgb(${r},${g},${b})`;
-}
-
+function lightenHex(hex,amt){ const r=Math.min(255,parseInt(hex.slice(1,3),16)+amt),g=Math.min(255,parseInt(hex.slice(3,5),16)+amt),b=Math.min(255,parseInt(hex.slice(5,7),16)+amt); return`rgb(${r},${g},${b})`; }
+function darkenHex(hex,amt){ const r=Math.max(0,parseInt(hex.slice(1,3),16)-amt),g=Math.max(0,parseInt(hex.slice(3,5),16)-amt),b=Math.max(0,parseInt(hex.slice(5,7),16)-amt); return`rgb(${r},${g},${b})`; }
 function drawAsteroids(){
     for(const a of asteroids){
-        const as = getAsteroidScreenPos(a);
-        const ax = as.x, ay = as.y;
-
-        // Cull off-screen with generous margin
-        if(ax < -150 || ax > canvas.width+150 || ay < -150 || ay > canvas.height+150) continue;
-
-        const col = a.tier.color;
-
-        ctx.save();
-        ctx.translate(ax, ay);
-        ctx.rotate(a.rotation);
-
-        // Rock silhouette
-        ctx.beginPath();
-        const sh = a.shape;
-        ctx.moveTo(Math.cos(sh[0].a) * sh[0].r, Math.sin(sh[0].a) * sh[0].r);
-        for(let vi = 1; vi < sh.length; vi++){
-            ctx.lineTo(Math.cos(sh[vi].a) * sh[vi].r, Math.sin(sh[vi].a) * sh[vi].r);
-        }
+        const as=getAsteroidScreenPos(a),ax=as.x,ay=as.y;
+        if(ax<-150||ax>canvas.width+150||ay<-150||ay>canvas.height+150) continue;
+        const col=a.tier.color;
+        ctx.save();ctx.translate(ax,ay);ctx.rotate(a.rotation);
+        ctx.beginPath();const sh=a.shape;ctx.moveTo(Math.cos(sh[0].a)*sh[0].r,Math.sin(sh[0].a)*sh[0].r);
+        for(let vi=1;vi<sh.length;vi++) ctx.lineTo(Math.cos(sh[vi].a)*sh[vi].r,Math.sin(sh[vi].a)*sh[vi].r);
         ctx.closePath();
-
-        // Radial gradient for 3D depth illusion
-        const rg = ctx.createRadialGradient(-a.radius*0.28, -a.radius*0.28, 0, 0, 0, a.radius);
-        rg.addColorStop(0,   lightenHex(col, 55));
-        rg.addColorStop(0.5, col);
-        rg.addColorStop(1,   darkenHex(col, 45));
-        ctx.fillStyle = rg;
-        ctx.fill();
-
-        // Subtle cracked-stone edge
-        ctx.strokeStyle = lightenHex(col, 20);
-        ctx.lineWidth = 0.7;
-        ctx.stroke();
-
-        // Brief white flash on hit (fades over cooldown duration)
-        if(a.hitCooldown > ASTEROID_COOLDOWN - 12){
-            const flashAlpha = (a.hitCooldown - (ASTEROID_COOLDOWN - 12)) / 12;
-            ctx.fillStyle = `rgba(255,240,200,${flashAlpha * 0.7})`;
-            ctx.fill();
-        }
-
+        const rg=ctx.createRadialGradient(-a.radius*0.28,-a.radius*0.28,0,0,0,a.radius);rg.addColorStop(0,lightenHex(col,55));rg.addColorStop(0.5,col);rg.addColorStop(1,darkenHex(col,45));ctx.fillStyle=rg;ctx.fill();
+        ctx.strokeStyle=lightenHex(col,20);ctx.lineWidth=0.7;ctx.stroke();
+        if(a.hitCooldown>ASTEROID_COOLDOWN-12){const fa=(a.hitCooldown-(ASTEROID_COOLDOWN-12))/12;ctx.fillStyle=`rgba(255,240,200,${fa*0.7})`;ctx.fill();}
         ctx.restore();
-
-        // Dock zone ring — shown when ship is within ASTEROID_SCAN_RADIUS
-        const scanDist = Math.sqrt((canvas.width/2 - ax)**2 + (canvas.height/2 - ay)**2);
-        if(scanDist < ASTEROID_SCAN_RADIUS){
-            const inDock = isInAsteroidDockZone(a);
-            ctx.beginPath();
-            ctx.arc(ax, ay, a.radius + ASTEROID_DOCK_BUFFER, 0, Math.PI*2);
-            if(inDock){
-                ctx.strokeStyle = 'rgba(255,160,0,0.55)';
-                ctx.lineWidth   = 2;
-                ctx.setLineDash([8,5]);
-                ctx.stroke();
-                ctx.setLineDash([]);
-                // Connection line to ship when docked
-                ctx.strokeStyle = 'rgba(255,160,0,0.25)';
-                ctx.lineWidth   = 1;
-                ctx.setLineDash([4,6]);
-                ctx.beginPath();
-                ctx.moveTo(ax, ay);
-                ctx.lineTo(canvas.width/2, canvas.height/2);
-                ctx.stroke();
-                ctx.setLineDash([]);
-                // Amber glow
-                ctx.shadowBlur  = 30;
-                ctx.shadowColor = '#ff8800';
-                ctx.beginPath();
-                ctx.arc(ax, ay, a.radius, 0, Math.PI*2);
-                ctx.strokeStyle = 'rgba(255,140,0,0.15)';
-                ctx.lineWidth   = 1;
-                ctx.stroke();
-                ctx.shadowBlur  = 0;
-            } else {
-                ctx.strokeStyle = 'rgba(200,120,0,0.2)';
-                ctx.lineWidth   = 1;
-                ctx.setLineDash([4,7]);
-                ctx.stroke();
-                ctx.setLineDash([]);
-            }
+        const scanDist=Math.sqrt((canvas.width/2-ax)**2+(canvas.height/2-ay)**2);
+        if(scanDist<ASTEROID_SCAN_RADIUS){
+            const inDock=isInAsteroidDockZone(a);
+            ctx.beginPath();ctx.arc(ax,ay,a.radius+ASTEROID_DOCK_BUFFER,0,Math.PI*2);
+            if(inDock){ctx.strokeStyle='rgba(255,160,0,0.55)';ctx.lineWidth=2;ctx.setLineDash([8,5]);ctx.stroke();ctx.setLineDash([]);ctx.strokeStyle='rgba(255,160,0,0.25)';ctx.lineWidth=1;ctx.setLineDash([4,6]);ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(canvas.width/2,canvas.height/2);ctx.stroke();ctx.setLineDash([]);ctx.shadowBlur=30;ctx.shadowColor='#ff8800';ctx.beginPath();ctx.arc(ax,ay,a.radius,0,Math.PI*2);ctx.strokeStyle='rgba(255,140,0,0.15)';ctx.lineWidth=1;ctx.stroke();ctx.shadowBlur=0;}
+            else{ctx.strokeStyle='rgba(200,120,0,0.2)';ctx.lineWidth=1;ctx.setLineDash([4,7]);ctx.stroke();ctx.setLineDash([]);}
         }
-        const dangerThreshold = a.radius + 90;
-        if(scanDist < dangerThreshold){
-            const intensity = 1 - scanDist / dangerThreshold;
-            ctx.beginPath();
-            ctx.arc(ax, ay, a.radius + 10, 0, Math.PI*2);
-            ctx.strokeStyle = `rgba(255,100,0,${0.12 + intensity * 0.4})`;
-            ctx.lineWidth = 1.5;
-            ctx.setLineDash([4,5]);
-            ctx.stroke();
-            ctx.setLineDash([]);
-        }
+        const dangerThreshold=a.radius+90;
+        if(scanDist<dangerThreshold){const intensity=1-scanDist/dangerThreshold;ctx.beginPath();ctx.arc(ax,ay,a.radius+10,0,Math.PI*2);ctx.strokeStyle=`rgba(255,100,0,${0.12+intensity*0.4})`;ctx.lineWidth=1.5;ctx.setLineDash([4,5]);ctx.stroke();ctx.setLineDash([]);}
     }
 }
 
 // =====================================================
-// PLANET PORTRAIT RENDERER
+// PLANET PORTRAIT
 // =====================================================
-const portraitCanvas = document.getElementById('planetPortrait');
-const pctx = portraitCanvas.getContext('2d');
-let portraitAnimFrame = 0;
+const portraitCanvas=document.getElementById('planetPortrait');
+const pctx=portraitCanvas.getContext('2d');
+let portraitAnimFrame=0;
 
 function drawPlanetPortrait(theme){
-    const pw = portraitCanvas.width, ph = portraitCanvas.height;
-    portraitAnimFrame += 0.008;
-    const isGreen = theme === 'green';
-
+    const pw=portraitCanvas.width,ph=portraitCanvas.height;
+    portraitAnimFrame+=0.008;const isGreen=theme==='green';
     pctx.clearRect(0,0,pw,ph);
-
-    const bgGrad = pctx.createLinearGradient(0,0,0,ph);
-    bgGrad.addColorStop(0, isGreen ? '#020d04' : '#000810');
-    bgGrad.addColorStop(1, isGreen ? '#010804' : '#000418');
-    pctx.fillStyle = bgGrad; pctx.fillRect(0,0,pw,ph);
-
-    pctx.fillStyle = 'rgba(255,255,255,0.6)';
-    const ss = [[12,8],[45,22],[88,15],[130,40],[178,12],[200,55],[60,70],[155,80],[22,85],[110,25],[190,30]];
-    for(const [sx,sy] of ss){
-        const tw = 0.5 + Math.sin(sx*0.7 + portraitAnimFrame)*0.3;
-        pctx.fillRect(sx,sy,tw,tw);
-    }
-
-    const cx = pw*0.62, cy = ph*0.52, r = 38;
-
-    const atmGrad = pctx.createRadialGradient(cx,cy,r*0.85,cx,cy,r*1.55);
-    atmGrad.addColorStop(0, isGreen ? 'rgba(20,180,60,0.25)' : 'rgba(40,100,255,0.25)');
-    atmGrad.addColorStop(0.5, isGreen ? 'rgba(10,120,30,0.1)' : 'rgba(20,60,200,0.1)');
-    atmGrad.addColorStop(1,'rgba(0,0,0,0)');
-    pctx.fillStyle = atmGrad;
-    pctx.beginPath(); pctx.arc(cx,cy,r*1.55,0,Math.PI*2); pctx.fill();
-
-    pctx.save();
-    pctx.beginPath(); pctx.arc(cx,cy,r,0,Math.PI*2); pctx.clip();
-
-    if(isGreen){
-        const bg = pctx.createRadialGradient(cx-r*0.3,cy-r*0.3,0,cx,cy,r);
-        bg.addColorStop(0,'#1a6632'); bg.addColorStop(0.5,'#0d4a22'); bg.addColorStop(1,'#082a12');
-        pctx.fillStyle = bg; pctx.fillRect(cx-r,cy-r,r*2,r*2);
-
-        for(const c of [{ox:0.2,oy:0.3,rx:0.3,ry:0.2,rot:0.5},{ox:-0.3,oy:-0.1,rx:0.22,ry:0.28,rot:-0.8}]){
-            pctx.save(); pctx.translate(cx+c.ox*r,cy+c.oy*r); pctx.rotate(c.rot);
-            const og=pctx.createRadialGradient(0,0,0,0,0,c.rx*r);
-            og.addColorStop(0,'rgba(20,100,180,0.7)'); og.addColorStop(1,'rgba(10,60,120,0)');
-            pctx.fillStyle=og; pctx.scale(1,c.ry/c.rx); pctx.beginPath(); pctx.arc(0,0,c.rx*r,0,Math.PI*2); pctx.fill(); pctx.restore();
-        }
-        for(const c of [{ox:0.1,oy:-0.15,rx:0.4,ry:0.3,rot:0.2},{ox:-0.2,oy:0.25,rx:0.28,ry:0.38,rot:-0.4},{ox:0.35,oy:0.3,rx:0.22,ry:0.18,rot:1.0}]){
-            pctx.save(); pctx.translate(cx+c.ox*r,cy+c.oy*r); pctx.rotate(c.rot);
-            const lg=pctx.createRadialGradient(0,0,0,0,0,c.rx*r);
-            lg.addColorStop(0,'#2db84a'); lg.addColorStop(0.6,'#1d8033'); lg.addColorStop(1,'rgba(10,50,20,0)');
-            pctx.fillStyle=lg; pctx.scale(1,c.ry/c.rx); pctx.beginPath(); pctx.arc(0,0,c.rx*r,0,Math.PI*2); pctx.fill(); pctx.restore();
-        }
-        for(let i=0;i<2;i++){
-            const cloudY=[cy-r*0.4,cy+r*0.15][i];
-            const offset=Math.sin(portraitAnimFrame*(0.5+i*0.4)+i)*r*0.05;
-            pctx.fillStyle='rgba(200,255,220,0.35)';
-            pctx.beginPath(); pctx.ellipse(cx+offset,cloudY,r*0.75,r*0.07,0,0,Math.PI*2); pctx.fill();
-        }
-    } else {
-        const bg=pctx.createRadialGradient(cx-r*0.3,cy-r*0.3,0,cx,cy,r);
-        bg.addColorStop(0,'#1155cc'); bg.addColorStop(0.5,'#0d3a8e'); bg.addColorStop(1,'#081e52');
-        pctx.fillStyle=bg; pctx.fillRect(cx-r,cy-r,r*2,r*2);
-        for(const c of [{ox:0.15,oy:-0.1,rx:0.38,ry:0.28,rot:0.3},{ox:-0.25,oy:0.2,rx:0.25,ry:0.35,rot:-0.5},{ox:0.3,oy:0.35,rx:0.2,ry:0.18,rot:1.1}]){
-            pctx.save(); pctx.translate(cx+c.ox*r,cy+c.oy*r); pctx.rotate(c.rot);
-            const lg=pctx.createRadialGradient(0,0,0,0,0,c.rx*r);
-            lg.addColorStop(0,'#3a7a3a'); lg.addColorStop(0.6,'#2d5e2d'); lg.addColorStop(1,'rgba(20,50,20,0)');
-            pctx.fillStyle=lg; pctx.scale(1,c.ry/c.rx); pctx.beginPath(); pctx.arc(0,0,c.rx*r,0,Math.PI*2); pctx.fill(); pctx.restore();
-        }
-        const cloudAlpha=[0.55,0.4,0.5];
-        for(let i=0;i<3;i++){
-            const cloudY=[cy-r*0.45,cy-r*0.05,cy+r*0.32][i];
-            const offset=Math.sin(portraitAnimFrame*(0.7+i*0.3)+i)*r*0.06;
-            pctx.fillStyle=`rgba(220,235,255,${cloudAlpha[i]})`;
-            pctx.beginPath(); pctx.ellipse(cx+offset,cloudY,r*0.85,r*0.09,0,0,Math.PI*2); pctx.fill();
-        }
-        const ig=pctx.createRadialGradient(cx,cy-r,0,cx,cy-r,r*0.42);
-        ig.addColorStop(0,'rgba(230,245,255,0.9)'); ig.addColorStop(1,'rgba(200,230,255,0)');
-        pctx.fillStyle=ig; pctx.beginPath(); pctx.arc(cx,cy-r,r*0.42,0,Math.PI*2); pctx.fill();
-    }
-
-    const specG=pctx.createRadialGradient(cx-r*0.3,cy-r*0.35,0,cx-r*0.3,cy-r*0.35,r*0.55);
-    specG.addColorStop(0,'rgba(255,255,255,0.15)'); specG.addColorStop(1,'rgba(255,255,255,0)');
-    pctx.fillStyle=specG; pctx.fillRect(cx-r,cy-r,r*2,r*2);
-    pctx.restore();
-
-    const rimG=pctx.createRadialGradient(cx,cy,r*0.92,cx,cy,r*1.08);
-    rimG.addColorStop(0,'rgba(0,0,0,0)');
-    rimG.addColorStop(0.4, isGreen ? 'rgba(20,180,60,0.18)' : 'rgba(60,120,255,0.18)');
-    rimG.addColorStop(1,   isGreen ? 'rgba(60,220,100,0.08)': 'rgba(100,160,255,0.08)');
-    pctx.fillStyle=rimG; pctx.beginPath(); pctx.arc(cx,cy,r*1.08,0,Math.PI*2); pctx.fill();
-
-    pctx.strokeStyle = isGreen ? 'rgba(0,220,120,0.5)' : 'rgba(0,180,255,0.5)';
-    pctx.lineWidth=1;
-    const bx=cx-r*1.15, by=cy-r*1.2, bs=10;
-    const bnd={ l:Math.max(2,bx), t:Math.max(2,by), r:Math.min(pw-2,bx+r*2.3), b:Math.min(ph-2,by+r*2.4) };
-    pctx.beginPath();
-    pctx.moveTo(bnd.l+bs,bnd.t); pctx.lineTo(bnd.l,bnd.t); pctx.lineTo(bnd.l,bnd.t+bs);
-    pctx.moveTo(bnd.r-bs,bnd.t); pctx.lineTo(bnd.r,bnd.t); pctx.lineTo(bnd.r,bnd.t+bs);
-    pctx.moveTo(bnd.l+bs,bnd.b); pctx.lineTo(bnd.l,bnd.b); pctx.lineTo(bnd.l,bnd.b-bs);
-    pctx.moveTo(bnd.r-bs,bnd.b); pctx.lineTo(bnd.r,bnd.b); pctx.lineTo(bnd.r,bnd.b-bs);
-    pctx.stroke();
-
-    const scanY=((portraitAnimFrame*18)%(ph+10))-5;
-    const sc = isGreen ? 'rgba(0,220,100,' : 'rgba(0,200,255,';
-    const scanG=pctx.createLinearGradient(0,scanY-6,0,scanY+6);
-    scanG.addColorStop(0,sc+'0)'); scanG.addColorStop(0.5,sc+'0.12)'); scanG.addColorStop(1,sc+'0)');
-    pctx.fillStyle=scanG; pctx.fillRect(0,scanY-6,pw,12);
+    const bgGrad=pctx.createLinearGradient(0,0,0,ph);bgGrad.addColorStop(0,isGreen?'#020d04':'#000810');bgGrad.addColorStop(1,isGreen?'#010804':'#000418');pctx.fillStyle=bgGrad;pctx.fillRect(0,0,pw,ph);
+    pctx.fillStyle='rgba(255,255,255,0.6)';const ss=[[12,8],[45,22],[88,15],[130,40],[178,12],[200,55],[60,70],[155,80],[22,85],[110,25],[190,30]];for(const[sx,sy]of ss){const tw=0.5+Math.sin(sx*0.7+portraitAnimFrame)*0.3;pctx.fillRect(sx,sy,tw,tw);}
+    const cx=pw*0.62,cy=ph*0.52,r=38;
+    const atmGrad=pctx.createRadialGradient(cx,cy,r*0.85,cx,cy,r*1.55);atmGrad.addColorStop(0,isGreen?'rgba(20,180,60,0.25)':'rgba(40,100,255,0.25)');atmGrad.addColorStop(0.5,isGreen?'rgba(10,120,30,0.1)':'rgba(20,60,200,0.1)');atmGrad.addColorStop(1,'rgba(0,0,0,0)');pctx.fillStyle=atmGrad;pctx.beginPath();pctx.arc(cx,cy,r*1.55,0,Math.PI*2);pctx.fill();
+    pctx.save();pctx.beginPath();pctx.arc(cx,cy,r,0,Math.PI*2);pctx.clip();
+    if(isGreen){const bg=pctx.createRadialGradient(cx-r*0.3,cy-r*0.3,0,cx,cy,r);bg.addColorStop(0,'#1a6632');bg.addColorStop(0.5,'#0d4a22');bg.addColorStop(1,'#082a12');pctx.fillStyle=bg;pctx.fillRect(cx-r,cy-r,r*2,r*2);for(const c of [{ox:0.2,oy:0.3,rx:0.3,ry:0.2,rot:0.5},{ox:-0.3,oy:-0.1,rx:0.22,ry:0.28,rot:-0.8}]){pctx.save();pctx.translate(cx+c.ox*r,cy+c.oy*r);pctx.rotate(c.rot);const og=pctx.createRadialGradient(0,0,0,0,0,c.rx*r);og.addColorStop(0,'rgba(20,100,180,0.7)');og.addColorStop(1,'rgba(10,60,120,0)');pctx.fillStyle=og;pctx.scale(1,c.ry/c.rx);pctx.beginPath();pctx.arc(0,0,c.rx*r,0,Math.PI*2);pctx.fill();pctx.restore();}for(const c of [{ox:0.1,oy:-0.15,rx:0.4,ry:0.3,rot:0.2},{ox:-0.2,oy:0.25,rx:0.28,ry:0.38,rot:-0.4},{ox:0.35,oy:0.3,rx:0.22,ry:0.18,rot:1.0}]){pctx.save();pctx.translate(cx+c.ox*r,cy+c.oy*r);pctx.rotate(c.rot);const lg=pctx.createRadialGradient(0,0,0,0,0,c.rx*r);lg.addColorStop(0,'#2db84a');lg.addColorStop(0.6,'#1d8033');lg.addColorStop(1,'rgba(10,50,20,0)');pctx.fillStyle=lg;pctx.scale(1,c.ry/c.rx);pctx.beginPath();pctx.arc(0,0,c.rx*r,0,Math.PI*2);pctx.fill();pctx.restore();}for(let i=0;i<2;i++){const cloudY=[cy-r*0.4,cy+r*0.15][i],offset=Math.sin(portraitAnimFrame*(0.5+i*0.4)+i)*r*0.05;pctx.fillStyle='rgba(200,255,220,0.35)';pctx.beginPath();pctx.ellipse(cx+offset,cloudY,r*0.75,r*0.07,0,0,Math.PI*2);pctx.fill();}}
+    else{const bg=pctx.createRadialGradient(cx-r*0.3,cy-r*0.3,0,cx,cy,r);bg.addColorStop(0,'#1155cc');bg.addColorStop(0.5,'#0d3a8e');bg.addColorStop(1,'#081e52');pctx.fillStyle=bg;pctx.fillRect(cx-r,cy-r,r*2,r*2);for(const c of [{ox:0.15,oy:-0.1,rx:0.38,ry:0.28,rot:0.3},{ox:-0.25,oy:0.2,rx:0.25,ry:0.35,rot:-0.5},{ox:0.3,oy:0.35,rx:0.2,ry:0.18,rot:1.1}]){pctx.save();pctx.translate(cx+c.ox*r,cy+c.oy*r);pctx.rotate(c.rot);const lg=pctx.createRadialGradient(0,0,0,0,0,c.rx*r);lg.addColorStop(0,'#3a7a3a');lg.addColorStop(0.6,'#2d5e2d');lg.addColorStop(1,'rgba(20,50,20,0)');pctx.fillStyle=lg;pctx.scale(1,c.ry/c.rx);pctx.beginPath();pctx.arc(0,0,c.rx*r,0,Math.PI*2);pctx.fill();pctx.restore();}const cloudAlpha=[0.55,0.4,0.5];for(let i=0;i<3;i++){const cloudY=[cy-r*0.45,cy-r*0.05,cy+r*0.32][i],offset=Math.sin(portraitAnimFrame*(0.7+i*0.3)+i)*r*0.06;pctx.fillStyle=`rgba(220,235,255,${cloudAlpha[i]})`;pctx.beginPath();pctx.ellipse(cx+offset,cloudY,r*0.85,r*0.09,0,0,Math.PI*2);pctx.fill();}const ig=pctx.createRadialGradient(cx,cy-r,0,cx,cy-r,r*0.42);ig.addColorStop(0,'rgba(230,245,255,0.9)');ig.addColorStop(1,'rgba(200,230,255,0)');pctx.fillStyle=ig;pctx.beginPath();pctx.arc(cx,cy-r,r*0.42,0,Math.PI*2);pctx.fill();}
+    const specG=pctx.createRadialGradient(cx-r*0.3,cy-r*0.35,0,cx-r*0.3,cy-r*0.35,r*0.55);specG.addColorStop(0,'rgba(255,255,255,0.15)');specG.addColorStop(1,'rgba(255,255,255,0)');pctx.fillStyle=specG;pctx.fillRect(cx-r,cy-r,r*2,r*2);pctx.restore();
+    const rimG=pctx.createRadialGradient(cx,cy,r*0.92,cx,cy,r*1.08);rimG.addColorStop(0,'rgba(0,0,0,0)');rimG.addColorStop(0.4,isGreen?'rgba(20,180,60,0.18)':'rgba(60,120,255,0.18)');rimG.addColorStop(1,isGreen?'rgba(60,220,100,0.08)':'rgba(100,160,255,0.08)');pctx.fillStyle=rimG;pctx.beginPath();pctx.arc(cx,cy,r*1.08,0,Math.PI*2);pctx.fill();
+    pctx.strokeStyle=isGreen?'rgba(0,220,120,0.5)':'rgba(0,180,255,0.5)';pctx.lineWidth=1;
+    const bx=cx-r*1.15,by=cy-r*1.2,bs=10,bnd={l:Math.max(2,bx),t:Math.max(2,by),r:Math.min(pw-2,bx+r*2.3),b:Math.min(ph-2,by+r*2.4)};
+    pctx.beginPath();pctx.moveTo(bnd.l+bs,bnd.t);pctx.lineTo(bnd.l,bnd.t);pctx.lineTo(bnd.l,bnd.t+bs);pctx.moveTo(bnd.r-bs,bnd.t);pctx.lineTo(bnd.r,bnd.t);pctx.lineTo(bnd.r,bnd.t+bs);pctx.moveTo(bnd.l+bs,bnd.b);pctx.lineTo(bnd.l,bnd.b);pctx.lineTo(bnd.l,bnd.b-bs);pctx.moveTo(bnd.r-bs,bnd.b);pctx.lineTo(bnd.r,bnd.b);pctx.lineTo(bnd.r,bnd.b-bs);pctx.stroke();
+    const scanY=((portraitAnimFrame*18)%(ph+10))-5,sc=isGreen?'rgba(0,220,100,':'rgba(0,200,255,';const scanG=pctx.createLinearGradient(0,scanY-6,0,scanY+6);scanG.addColorStop(0,sc+'0)');scanG.addColorStop(0.5,sc+'0.12)');scanG.addColorStop(1,sc+'0)');pctx.fillStyle=scanG;pctx.fillRect(0,scanY-6,pw,12);
 }
-
-// =====================================================
-// ASTEROID PORTRAIT RENDERER
-// =====================================================
 function drawAsteroidPortrait(asteroid){
-    const pw = portraitCanvas.width, ph = portraitCanvas.height;
-    portraitAnimFrame += 0.008;
-
-    pctx.clearRect(0,0,pw,ph);
-
-    // Dark rocky background
-    const bgGrad = pctx.createLinearGradient(0,0,0,ph);
-    bgGrad.addColorStop(0,'#0d0a06'); bgGrad.addColorStop(1,'#060402');
-    pctx.fillStyle = bgGrad; pctx.fillRect(0,0,pw,ph);
-
-    // Faint star field
-    pctx.fillStyle = 'rgba(255,255,255,0.5)';
-    const ss=[[18,9],[50,25],[92,14],[140,38],[175,10],[205,52],[65,68],[160,78],[28,88],[115,22],[195,32]];
-    for(const [sx,sy] of ss){
-        const tw = 0.4 + Math.sin(sx*0.9 + portraitAnimFrame)*0.3;
-        pctx.fillRect(sx,sy,tw,tw);
-    }
-
-    // Draw asteroid rock using its own shape
-    const cx = pw*0.62, cy = ph*0.52;
-    const tier = asteroid.tier;
-    const displayR = 28; // fixed portrait display radius
-
-    // Slow portrait spin
-    const spinAngle = portraitAnimFrame * 0.4;
-
-    // Amber glow aura
-    const auraGrad = pctx.createRadialGradient(cx,cy,displayR*0.7,cx,cy,displayR*2.0);
-    auraGrad.addColorStop(0,'rgba(255,140,20,0.18)');
-    auraGrad.addColorStop(0.5,'rgba(200,80,0,0.07)');
-    auraGrad.addColorStop(1,'rgba(0,0,0,0)');
-    pctx.fillStyle = auraGrad;
-    pctx.beginPath(); pctx.arc(cx,cy,displayR*2.0,0,Math.PI*2); pctx.fill();
-
-    // Rock shape (reuse asteroid's polygon, scaled to portrait size)
-    pctx.save();
-    pctx.translate(cx, cy);
-    pctx.rotate(spinAngle);
-    const sh = asteroid.shape;
-    const scaleFactor = displayR / asteroid.radius;
-    pctx.beginPath();
-    pctx.moveTo(Math.cos(sh[0].a)*sh[0].r*scaleFactor, Math.sin(sh[0].a)*sh[0].r*scaleFactor);
-    for(let vi=1; vi<sh.length; vi++){
-        pctx.lineTo(Math.cos(sh[vi].a)*sh[vi].r*scaleFactor, Math.sin(sh[vi].a)*sh[vi].r*scaleFactor);
-    }
-    pctx.closePath();
-
-    const col = tier.color;
-    const rg = pctx.createRadialGradient(-displayR*0.25,-displayR*0.25,0,0,0,displayR);
-    rg.addColorStop(0, lightenHex(col,60));
-    rg.addColorStop(0.5, col);
-    rg.addColorStop(1, darkenHex(col,50));
-    pctx.fillStyle = rg; pctx.fill();
-    pctx.strokeStyle = lightenHex(col,25); pctx.lineWidth = 0.8; pctx.stroke();
-    pctx.restore();
-
-    // Corner bracket — amber colour
-    pctx.strokeStyle = 'rgba(255,160,30,0.55)';
-    pctx.lineWidth = 1;
-    const bx=cx-displayR*1.2, by=cy-displayR*1.3, bs=9;
-    const bnd={ l:Math.max(2,bx), t:Math.max(2,by), r:Math.min(pw-2,bx+displayR*2.4), b:Math.min(ph-2,by+displayR*2.6) };
-    pctx.beginPath();
-    pctx.moveTo(bnd.l+bs,bnd.t); pctx.lineTo(bnd.l,bnd.t); pctx.lineTo(bnd.l,bnd.t+bs);
-    pctx.moveTo(bnd.r-bs,bnd.t); pctx.lineTo(bnd.r,bnd.t); pctx.lineTo(bnd.r,bnd.t+bs);
-    pctx.moveTo(bnd.l+bs,bnd.b); pctx.lineTo(bnd.l,bnd.b); pctx.lineTo(bnd.l,bnd.b-bs);
-    pctx.moveTo(bnd.r-bs,bnd.b); pctx.lineTo(bnd.r,bnd.b); pctx.lineTo(bnd.r,bnd.b-bs);
-    pctx.stroke();
-
-    // Amber scan line
-    const scanY=((portraitAnimFrame*18)%(ph+10))-5;
-    const scanG=pctx.createLinearGradient(0,scanY-6,0,scanY+6);
-    scanG.addColorStop(0,'rgba(255,140,0,0)'); scanG.addColorStop(0.5,'rgba(255,140,0,0.14)'); scanG.addColorStop(1,'rgba(255,140,0,0)');
-    pctx.fillStyle=scanG; pctx.fillRect(0,scanY-6,pw,12);
+    const pw=portraitCanvas.width,ph=portraitCanvas.height;portraitAnimFrame+=0.008;
+    pctx.clearRect(0,0,pw,ph);const bgGrad=pctx.createLinearGradient(0,0,0,ph);bgGrad.addColorStop(0,'#0d0a06');bgGrad.addColorStop(1,'#060402');pctx.fillStyle=bgGrad;pctx.fillRect(0,0,pw,ph);
+    pctx.fillStyle='rgba(255,255,255,0.5)';const ss=[[18,9],[50,25],[92,14],[140,38],[175,10],[205,52],[65,68],[160,78],[28,88],[115,22],[195,32]];for(const[sx,sy]of ss){const tw=0.4+Math.sin(sx*0.9+portraitAnimFrame)*0.3;pctx.fillRect(sx,sy,tw,tw);}
+    const cx=pw*0.62,cy=ph*0.52,tier=asteroid.tier,displayR=28,spinAngle=portraitAnimFrame*0.4;
+    const auraGrad=pctx.createRadialGradient(cx,cy,displayR*0.7,cx,cy,displayR*2.0);auraGrad.addColorStop(0,'rgba(255,140,20,0.18)');auraGrad.addColorStop(0.5,'rgba(200,80,0,0.07)');auraGrad.addColorStop(1,'rgba(0,0,0,0)');pctx.fillStyle=auraGrad;pctx.beginPath();pctx.arc(cx,cy,displayR*2.0,0,Math.PI*2);pctx.fill();
+    pctx.save();pctx.translate(cx,cy);pctx.rotate(spinAngle);const sh=asteroid.shape,scaleFactor=displayR/asteroid.radius;pctx.beginPath();pctx.moveTo(Math.cos(sh[0].a)*sh[0].r*scaleFactor,Math.sin(sh[0].a)*sh[0].r*scaleFactor);for(let vi=1;vi<sh.length;vi++) pctx.lineTo(Math.cos(sh[vi].a)*sh[vi].r*scaleFactor,Math.sin(sh[vi].a)*sh[vi].r*scaleFactor);pctx.closePath();
+    const col=tier.color,rg=pctx.createRadialGradient(-displayR*0.25,-displayR*0.25,0,0,0,displayR);rg.addColorStop(0,lightenHex(col,60));rg.addColorStop(0.5,col);rg.addColorStop(1,darkenHex(col,50));pctx.fillStyle=rg;pctx.fill();pctx.strokeStyle=lightenHex(col,25);pctx.lineWidth=0.8;pctx.stroke();pctx.restore();
+    pctx.strokeStyle='rgba(255,160,30,0.55)';pctx.lineWidth=1;const bx=cx-displayR*1.2,by=cy-displayR*1.3,bs=9,bnd={l:Math.max(2,bx),t:Math.max(2,by),r:Math.min(pw-2,bx+displayR*2.4),b:Math.min(ph-2,by+displayR*2.6)};pctx.beginPath();pctx.moveTo(bnd.l+bs,bnd.t);pctx.lineTo(bnd.l,bnd.t);pctx.lineTo(bnd.l,bnd.t+bs);pctx.moveTo(bnd.r-bs,bnd.t);pctx.lineTo(bnd.r,bnd.t);pctx.lineTo(bnd.r,bnd.t+bs);pctx.moveTo(bnd.l+bs,bnd.b);pctx.lineTo(bnd.l,bnd.b);pctx.lineTo(bnd.l,bnd.b-bs);pctx.moveTo(bnd.r-bs,bnd.b);pctx.lineTo(bnd.r,bnd.b);pctx.lineTo(bnd.r,bnd.b-bs);pctx.stroke();
+    const scanY=((portraitAnimFrame*18)%(ph+10))-5,scanG=pctx.createLinearGradient(0,scanY-6,0,scanY+6);scanG.addColorStop(0,'rgba(255,140,0,0)');scanG.addColorStop(0.5,'rgba(255,140,0,0.14)');scanG.addColorStop(1,'rgba(255,140,0,0)');pctx.fillStyle=scanG;pctx.fillRect(0,scanY-6,pw,12);
 }
 
 // =====================================================
 // TARGET HUD UPDATE
 // =====================================================
 function updateTargetHUD(){
-    const nearPlanet   = getNearestScannablePlanet();
-    const nearAsteroid = getNearestScannableAsteroid();
-
-    // Priority: if both in range, show whichever is closer
-    let targetType = null; // 'planet' | 'asteroid' | null
-    if(nearPlanet && nearAsteroid){
-        const dp = getDistanceToPlanet(nearPlanet);
-        const da = getDistanceToAsteroid(nearAsteroid);
-        targetType = dp <= da ? 'planet' : 'asteroid';
-    } else if(nearPlanet)   { targetType = 'planet';   }
-      else if(nearAsteroid) { targetType = 'asteroid'; }
-
-    const hudEl = document.getElementById('targetHUD');
-
-    if(!targetType){
-        hudEl.classList.add('hidden');
-        // Draw last-seen planet portrait as a placeholder
-        const theme = planets[lockedPlanetId] ? planets[lockedPlanetId].theme : 'blue';
-        drawPlanetPortrait(theme);
-        return;
-    }
+    const nearPlanet=getNearestScannablePlanet(),nearAsteroid=getNearestScannableAsteroid();
+    let targetType=null;
+    if(nearPlanet&&nearAsteroid){ const dp=getDistanceToPlanet(nearPlanet),da=getDistanceToAsteroid(nearAsteroid); targetType=dp<=da?'planet':'asteroid'; }
+    else if(nearPlanet) targetType='planet';
+    else if(nearAsteroid) targetType='asteroid';
+    const hudEl=document.getElementById('targetHUD');
+    if(!targetType){ hudEl.classList.add('hidden'); drawPlanetPortrait(planets[lockedPlanetId]?planets[lockedPlanetId].theme:'blue'); return; }
     if(targetHudVisible) hudEl.classList.remove('hidden');
-
-    // ── ASTEROID TARGET ─────────────────────────────────────────
-    if(targetType === 'asteroid'){
-        const a    = nearAsteroid;
-        const dist = getDistanceToAsteroid(a);
-        const threshold = a.radius + ASTEROID_DOCK_BUFFER;
-        const inDock    = dist < threshold;
-        const pct       = Math.max(0, Math.min(100, (1 - dist / ASTEROID_SCAN_RADIUS) * 100));
-
+    if(targetType==='asteroid'){
+        const a=nearAsteroid,dist=getDistanceToAsteroid(a),threshold=a.radius+ASTEROID_DOCK_BUFFER,inDock=dist<threshold,pct=Math.max(0,Math.min(100,(1-dist/ASTEROID_SCAN_RADIUS)*100));
         drawAsteroidPortrait(a);
-
-        // Amber HUD theme
-        hudEl.style.borderColor = 'rgba(255,150,20,0.5)';
-        hudEl.style.boxShadow   = '0 0 18px rgba(255,120,0,0.2),inset 0 0 30px rgba(0,0,0,0.5)';
-
-        const pnEl = document.getElementById('portraitName');
-        const tierLabel = a.tier.label.toUpperCase();
-        pnEl.textContent   = tierLabel + ' ASTEROID';
-        pnEl.style.color   = 'rgba(255,200,100,0.95)';
-        pnEl.style.textShadow = '0 0 8px rgba(255,140,0,0.9)';
-
-        const ptEl = document.getElementById('portraitType');
-        ptEl.textContent   = 'ASTEROID';
-        ptEl.style.color   = 'rgba(255,160,40,0.7)';
-
-        document.getElementById('dbgDist').textContent      = Math.round(dist) + ' px';
-        document.getElementById('dbgThreshold').textContent = Math.round(threshold) + ' px';
-        document.getElementById('dbgPct').textContent       = Math.round(pct) + '%';
-
-        const statusEl   = document.getElementById('dbgStatus');
-        const bar        = document.getElementById('dbgBar');
-        const dockPrompt = document.getElementById('thudDockPrompt');
-
-        if(dist < a.radius){
-            statusEl.textContent='⚠ COLLISION';   statusEl.style.color='#ff4444'; bar.style.background='#ff2222'; dockPrompt.style.display='none';
-        } else if(inDock){
-            statusEl.textContent='⛏ MINE ZONE';  statusEl.style.color='#ffaa00'; bar.style.background='#ff9900'; dockPrompt.style.display='block';
-            dockPrompt.textContent = '▶ PRESS P TO MINE ◀';
-            dockPrompt.style.color = '#ffaa00';
-        } else if(pct > 40){
-            statusEl.textContent='◎ APPROACHING'; statusEl.style.color='#ffcc55'; bar.style.background='#cc8800'; dockPrompt.style.display='none';
-        } else {
-            statusEl.textContent='· · SCANNING · ·'; statusEl.style.color='#886633'; bar.style.background='#664400'; dockPrompt.style.display='none';
-        }
-        bar.style.width = pct + '%';
-        return;
+        hudEl.style.borderColor='rgba(255,150,20,0.5)'; hudEl.style.boxShadow='0 0 18px rgba(255,120,0,0.2),inset 0 0 30px rgba(0,0,0,0.5)';
+        const pnEl=document.getElementById('portraitName');pnEl.textContent=a.tier.label.toUpperCase()+' ASTEROID';pnEl.style.color='rgba(255,200,100,0.95)';pnEl.style.textShadow='0 0 8px rgba(255,140,0,0.9)';
+        const ptEl=document.getElementById('portraitType');ptEl.textContent='ASTEROID';ptEl.style.color='rgba(255,160,40,0.7)';
+        document.getElementById('dbgDist').textContent=Math.round(dist)+' px';document.getElementById('dbgThreshold').textContent=Math.round(threshold)+' px';document.getElementById('dbgPct').textContent=Math.round(pct)+'%';
+        const statusEl=document.getElementById('dbgStatus'),bar=document.getElementById('dbgBar'),dockPrompt=document.getElementById('thudDockPrompt');
+        if(dist<a.radius){statusEl.textContent='⚠ COLLISION';statusEl.style.color='#ff4444';bar.style.background='#ff2222';dockPrompt.style.display='none';}
+        else if(inDock){statusEl.textContent='⛏ MINE ZONE';statusEl.style.color='#ffaa00';bar.style.background='#ff9900';dockPrompt.style.display='block';dockPrompt.textContent='▶ PRESS P TO MINE ◀';dockPrompt.style.color='#ffaa00';}
+        else if(pct>40){statusEl.textContent='◎ APPROACHING';statusEl.style.color='#ffcc55';bar.style.background='#cc8800';dockPrompt.style.display='none';}
+        else{statusEl.textContent='· · SCANNING · ·';statusEl.style.color='#886633';bar.style.background='#664400';dockPrompt.style.display='none';}
+        bar.style.width=pct+'%';return;
     }
-
-    // ── PLANET TARGET ────────────────────────────────────────────
-    const target  = nearPlanet;
-    const theme   = target.theme;
-    drawPlanetPortrait(theme);
-
-    lockedPlanetId = target.id;
-    const isGreen = target.theme === 'green';
-
-    const pnEl = document.getElementById('portraitName');
-    pnEl.textContent   = target.name;
-    pnEl.style.color   = isGreen ? 'rgba(180,255,200,0.9)' : 'rgba(200,230,255,0.9)';
-    pnEl.style.textShadow = isGreen ? '0 0 8px rgba(0,200,80,0.8)' : '0 0 8px rgba(0,150,255,0.8)';
-    const ptEl = document.getElementById('portraitType');
-    ptEl.textContent = target.classLabel;
-    ptEl.style.color = isGreen ? 'rgba(0,220,120,0.6)' : 'rgba(0,200,255,0.6)';
-
-    hudEl.style.borderColor = isGreen ? 'rgba(0,200,100,0.45)' : 'rgba(0,180,255,0.35)';
-    hudEl.style.boxShadow   = isGreen
-        ? '0 0 18px rgba(0,160,60,0.2),inset 0 0 30px rgba(0,0,0,0.5)'
-        : '0 0 18px rgba(0,120,255,0.15),inset 0 0 30px rgba(0,0,0,0.5)';
-
-    const dist      = getDistanceToPlanet(target);
-    const threshold = target.radius + DOCK_BUFFER;
-    const inDock    = dist < threshold;
-    const pct       = Math.max(0, Math.min(100, (1 - dist/SCAN_RADIUS)*100));
-
-    document.getElementById('dbgDist').textContent      = Math.round(dist) + ' px';
-    document.getElementById('dbgThreshold').textContent = Math.round(threshold) + ' px';
-    document.getElementById('dbgPct').textContent       = Math.round(pct) + '%';
-
-    const statusEl   = document.getElementById('dbgStatus');
-    const bar        = document.getElementById('dbgBar');
-    const dockPrompt = document.getElementById('thudDockPrompt');
-
-    if(dist < target.radius){
-        statusEl.textContent='⚠ COLLISION'; statusEl.style.color='#ff4444'; bar.style.background='#ff2222'; dockPrompt.style.display='none';
-    } else if(inDock){
-        statusEl.textContent='✔ DOCK ZONE'; statusEl.style.color='#00ff88';
-        bar.style.background = isGreen ? '#00dd66' : '#00ee66';
-        dockPrompt.style.display='block';
-        dockPrompt.textContent = '▶ PRESS P TO DOCK ◀';
-        dockPrompt.style.color = '#FFD700';
-    } else if(pct > 40){
-        statusEl.textContent='◎ APPROACHING'; statusEl.style.color='#ffcc00'; bar.style.background='#ffaa00'; dockPrompt.style.display='none';
-    } else {
-        statusEl.textContent='· · SCANNING · ·'; statusEl.style.color = isGreen?'#336644':'#5588aa';
-        bar.style.background = isGreen?'#116633':'#1166aa'; dockPrompt.style.display='none';
-    }
-    bar.style.width = pct+'%';
+    const target=nearPlanet,theme=target.theme;
+    drawPlanetPortrait(theme);lockedPlanetId=target.id;const isGreen=target.theme==='green';
+    const pnEl=document.getElementById('portraitName');pnEl.textContent=target.name;pnEl.style.color=isGreen?'rgba(180,255,200,0.9)':'rgba(200,230,255,0.9)';pnEl.style.textShadow=isGreen?'0 0 8px rgba(0,200,80,0.8)':'0 0 8px rgba(0,150,255,0.8)';
+    const ptEl=document.getElementById('portraitType');ptEl.textContent=target.classLabel;ptEl.style.color=isGreen?'rgba(0,220,120,0.6)':'rgba(0,200,255,0.6)';
+    hudEl.style.borderColor=isGreen?'rgba(0,200,100,0.45)':'rgba(0,180,255,0.35)';hudEl.style.boxShadow=isGreen?'0 0 18px rgba(0,160,60,0.2),inset 0 0 30px rgba(0,0,0,0.5)':'0 0 18px rgba(0,120,255,0.15),inset 0 0 30px rgba(0,0,0,0.5)';
+    const dist=getDistanceToPlanet(target),threshold=target.radius+DOCK_BUFFER,inDock=dist<threshold,pct=Math.max(0,Math.min(100,(1-dist/SCAN_RADIUS)*100));
+    document.getElementById('dbgDist').textContent=Math.round(dist)+' px';document.getElementById('dbgThreshold').textContent=Math.round(threshold)+' px';document.getElementById('dbgPct').textContent=Math.round(pct)+'%';
+    const statusEl=document.getElementById('dbgStatus'),bar=document.getElementById('dbgBar'),dockPrompt=document.getElementById('thudDockPrompt');
+    if(dist<target.radius){statusEl.textContent='⚠ COLLISION';statusEl.style.color='#ff4444';bar.style.background='#ff2222';dockPrompt.style.display='none';}
+    else if(inDock){statusEl.textContent='✔ DOCK ZONE';statusEl.style.color='#00ff88';bar.style.background=isGreen?'#00dd66':'#00ee66';dockPrompt.style.display='block';dockPrompt.textContent='▶ PRESS P TO DOCK ◀';dockPrompt.style.color='#FFD700';}
+    else if(pct>40){statusEl.textContent='◎ APPROACHING';statusEl.style.color='#ffcc00';bar.style.background='#ffaa00';dockPrompt.style.display='none';}
+    else{statusEl.textContent='· · SCANNING · ·';statusEl.style.color=isGreen?'#336644':'#5588aa';bar.style.background=isGreen?'#116633':'#1166aa';dockPrompt.style.display='none';}
+    bar.style.width=pct+'%';
 }
 
 // =====================================================
@@ -2275,23 +1430,12 @@ function updateTargetHUD(){
 // =====================================================
 function loop(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
-
-    updateShip();
-    updateCamera();
-    updateAsteroids();
-
-    // Draw order: planets → asteroids → stars → ship (ship always on top)
+    updateShip(); updateCamera(); updateAsteroids();
     for(const p of planets) drawPlanetBody(p);
-    drawAsteroids();
-    drawStars();
-    drawShip();
-
-    updateTargetHUD();
-    updateActionButtons();
-
+    drawAsteroids(); drawStars(); drawShip();
+    updateTargetHUD(); updateActionButtons();
     requestAnimationFrame(loop);
 }
-
 loop();
 </script>
 </body>
